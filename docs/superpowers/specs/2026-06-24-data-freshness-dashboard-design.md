@@ -6,18 +6,21 @@
 ## 1. 目標（Overview）
 
 做一個**手機 + 電腦都能用**的網頁，快速查詢各資料表「最新資料時間 / 延遲 / SLA 狀態」。
-資料來源是現有 R 腳本（`資料新鮮度監測 (CPS)_HK_2.0.R`、`..._TW_2.0.R`）持續 append 到
-Google Sheet 的快照。前端純靜態、部署到 GitHub Pages、接自有網域 `hsuping.org`。
+資料來源是現有 R 腳本（`資料新鮮度監測 (CPS)_HK_2.0.R`）持續 append 到 Google Sheet 的快照。
+前端純靜態、部署到 GitHub Pages、接自有網域 `hsuping.org`。
 UI 完全照附件「Slate Ops」設計（`Dashboard.dc.html` / `TableDetail.dc.html` / `README.md`
 為像素級依據）。
 
-**不在範圍內**：改動 R 腳本 / Google Sheet 結構；真正的帳號驗證；後端服務；CI build。
+**v1 範圍 = HK only**：剛好對應附件原設計（HK 的 `group_name` 模型），不需地區切換。
+TW 留待後續擴充（欄位對照已在 §4 記錄，屆時加 region 切換即可）。
+
+**不在範圍內**：TW（v1 不做）；改動 R 腳本 / Google Sheet 結構；真正的帳號驗證；後端服務；CI build。
 
 ## 2. 已確認的決策（Locked decisions）
 
 | 主題 | 決定 |
 |---|---|
-| 地區範圍 | **HK + TW 都做**，頂部 HK/TW 切換 |
+| 地區範圍 | **v1 只做 HK**（無地區切換）；TW 後續擴充 |
 | 公開性 | **公開可查**沒關係（資料不敏感到需要保護） |
 | 密碼 | **簡單裝飾性密碼閘**（前端，SHA-256 雜湊存 `config.js`），非真正安全 |
 | 資料讀取 | 前端**直接讀 Google Sheet gviz**，無後端、無 Apps Script、無快照烤製 |
@@ -32,30 +35,31 @@ UI 完全照附件「Slate Ops」設計（`Dashboard.dc.html` / `TableDetail.dc.
 瀏覽器 (GitHub Pages, hsuping.org)
   │  1. 載入 index.html / styles.css / app.js / config.js
   │  2. 密碼畫面 → SHA-256 比對 → localStorage flag
-  │  3. fetch gviz (HK sheet + TW sheet) ─────────────► Google Sheets
-  │  4. 正規化兩種 schema → 共同模型 → 過濾最新 Check_Time 快照
+  │  3. fetch gviz (HK sheet) ────────────────────────► Google Sheets
+  │  4. 正規化 schema → 共同模型 → 過濾最新 Check_Time 快照
   │  5. 渲染四個畫面（Slate Ops）
   │  6. 進詳情頁 → fetch gviz 該表近 24h 歷史 → 畫真實趨勢
   ▼
 （無後端；所有運算在前端）
 ```
 
-純前端、stack 式導覽（push/pop），地區/BU/模式切換只在首頁作用。
+純前端、stack 式導覽（push/pop），BU/模式切換只在首頁作用。
+（共同模型 §5 與正規化 §4.2 仍以「region」為鍵設計，v1 固定 `HK`，方便日後加 TW。）
 
 ## 4. 資料來源與正規化
 
-### 4.1 兩份 sheet
+### 4.1 sheet（v1 只用 HK）
 
-| 地區 | Spreadsheet ID | Tab |
-|---|---|---|
-| HK | `1Ti9iywMTyd7mEvnz47NvfQUsIruuhrxyWwFQx1L3pF4` | `HK` |
-| TW | `1htrpPIl9U62rwzLg5UmGui38-8KBMMRhRSIYH11VNus` | `TW` |
+| 地區 | Spreadsheet ID | Tab | v1 |
+|---|---|---|---|
+| HK | `1Ti9iywMTyd7mEvnz47NvfQUsIruuhrxyWwFQx1L3pF4` | `HK` | ✅ |
+| TW | `1htrpPIl9U62rwzLg5UmGui38-8KBMMRhRSIYH11VNus` | `TW` | 後續 |
 
-**一次性設定**：兩份 sheet 須設為「知道連結的人皆可檢視」，gviz 才讀得到（公開可接受）。
+**一次性設定**：HK sheet 須設為「知道連結的人皆可檢視」，gviz 才讀得到（公開可接受）。
 
-### 4.2 欄位對照（兩份 schema 不同，欄位字母在兩份中一致）
+### 4.2 欄位對照（欄位字母在兩份 schema 中一致；TW 欄保留供日後擴充）
 
-| 共同模型欄位 | HK 欄（字母） | TW 欄（字母） | 備註 |
+| 共同模型欄位 | HK 欄（字母）✅ | TW 欄（字母，後續） | 備註 |
 |---|---|---|---|
 | `bu` | `BU` (A) | `BU` (A) | `MCD` / `BKW`，直接讀 sheet |
 | `group` | `group_name` (B) | `SITE` (B) | TW 的 SITE 對應設計的「群組」 |
@@ -68,10 +72,9 @@ UI 完全照附件「Slate Ops」設計（`Dashboard.dc.html` / `TableDetail.dc.
 | `delayHuman` | `Delay_Status` (J) | `DELAY_STATUS` (J) | 例：`19時 4分` |
 | `status` | `SLA_Status` (K) | `SLA_STATUS` (K) | `Breached` / `Met` |
 
-- HK 第 H 欄 = `max_update_unix_ms`、第 L 欄 = `Update_Count`；TW 第 H 欄 = `MAX_UPDATE_UNIX_MS`、**無 Update_Count**。兩者 UI 皆不使用。
-- BU → 群組清單**從資料動態推導**（distinct group，首見順序），不寫死，以利 TW 日後增站（如 `bj`、`bt`）。
+- HK 第 H 欄 = `max_update_unix_ms`、第 L 欄 = `Update_Count`（UI 不使用）。
+- BU → 群組清單**從資料動態推導**（distinct group，首見順序），不寫死。
   - 預期 HK：`BKW=[bjgroup]`、`MCD=[cxgroup, segroup, mcwgroup]`。
-  - 預期 TW：`BKW=[bj]`、`MCD=[cx, se, bt, mcw]`。
 
 ### 4.3 gviz 查詢
 
@@ -111,13 +114,13 @@ tq = select F, I where A = '{bu}' and B = '{group}' and C = '{table}' order by F
 衍生值（每次渲染算）：群組健康度 = `round((total - breached)/total*100)`；
 distinct 表清單（依 BU 首見順序）；某表跨群組 = 該 BU 含此表的群組。
 
-## 6. 畫面（四畫面 + 地區切換）
+## 6. 畫面（四畫面，完全照原設計）
 
 像素級依據 = 附件 `Dashboard.dc.html` / `TableDetail.dc.html` / `README.md`（實作期會把這些原型
-HTML 收進 `dashboard/design-reference/` 供對照）。導覽為 stack push/pop。
+HTML 收進 `dashboard/design-reference/` 供對照）。導覽為 stack push/pop。v1 無地區切換。
 
-1. **首頁 Menu**：標題「資料觀測」+ 副標「更新 {checkTime} · N 群組 / M 張表」（依地區）。
-   控制列：**HK/TW 地區切換**（segmented，新增）+ 模式切換「依群組/依資料表」+ BU 膠囊「MCD/BKW」。
+1. **首頁 Menu**：標題「資料觀測」+ 副標「更新 {checkTime} · N 群組 / M 張表」。
+   控制列：模式切換「依群組/依資料表」+ BU 膠囊「MCD/BKW」（完全照原設計）。
    內容：依群組 → 群組卡片（健康度色塊 + 名稱 + 「{n} 張逾期 · 共 {total} 張」）；
    依資料表 → 資料表列（狀態點 + 表名 + 群組數 + 狀態 pill）。
 2. **群組 → 資料表**：返回鍵 + 標題（群組名 + BU badge + meta）+ 篩選膠囊（全部/只看異常/Realtime/Offline，
@@ -136,13 +139,13 @@ Realtime chip 藍 `#E7F0FE`/`#2F6FE0`、Offline 灰 `#EEF1F5`/`#5E6675`；選中
 ## 7. 狀態管理
 
 ```
-region:  'HK' | 'TW'                 // 首頁地區切換
+region:  'HK'                         // v1 固定 HK（保留鍵以利日後加 TW）
 mode:    'byGroup' | 'byTable'        // 首頁模式
 bu:      'MCD' | 'BKW'               // 首頁 BU
 stack:   Array<{type:'groupTables',bu,group} | {type:'tableGroups',bu,table} | {type:'detail',id}>
 gFilter: 'all' | 'breach' | 'rt' | 'off'   // 群組→表 篩選
 ```
-切換 region 重新抓對應 sheet 並重置 stack；切 BU/mode 重新推導清單。
+切 BU/mode 重新推導清單。（日後加 TW：region 改為可切換並重抓對應 sheet、重置 stack。）
 
 ## 8. 密碼閘
 
@@ -179,8 +182,9 @@ const CONFIG = {
   password_sha256: '<53343286@Di 的 SHA-256 hex>',
   regions: {
     HK: { id: '1Ti9iywMTyd7mEvnz47NvfQUsIruuhrxyWwFQx1L3pF4', tab: 'HK' },
-    TW: { id: '1htrpPIl9U62rwzLg5UmGui38-8KBMMRhRSIYH11VNus', tab: 'TW' },
+    // TW: { id: '1htrpPIl9U62rwzLg5UmGui38-8KBMMRhRSIYH11VNus', tab: 'TW' }, // 後續擴充
   },
+  defaultRegion: 'HK',
   refreshMs: 0, // 0 = 不自動刷新
 };
 ```
@@ -208,6 +212,9 @@ const CONFIG = {
 
 ## 14. 未來可擴充
 
+- **加入 TW**（v1 之後的第一順位）：HK sheet schema 已在 §4 記錄；做法 = `config.regions` 加回 TW、
+  首頁加 HK/TW segmented 切換、`region` 變成可切換狀態、切換時重抓對應 sheet 並重置 stack。
+  正規化與共同模型（§4.2 / §5）已預留 `region` 鍵，改動很小。
 - 真正帳號驗證（需後端）。
 - TW 補 `Update_Count` 後可在 UI 顯示更新筆數。
 - 自動刷新預設開啟 / 可調間隔。
