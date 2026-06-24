@@ -23,5 +23,37 @@
     return row.c[i].f != null ? row.c[i].f : row.c[i].v;
   }
 
-  return { parseGvizText: parseGvizText, cellV: cellV, cellF: cellF };
+  var COL = { bu: 0, group: 1, table: 2, source: 3, sla: 4, checkTime: 5, maxUpdate: 6, delay: 8, delayHuman: 9, status: 10 };
+
+  function normalizeRow(region, r) {
+    var bu = cellV(r, COL.bu);
+    if (bu == null) return null;
+    return {
+      region: region,
+      bu: String(bu),
+      group: String(cellV(r, COL.group)),
+      table: String(cellV(r, COL.table)),
+      source: String(cellV(r, COL.source)),
+      sla: Number(cellV(r, COL.sla)),
+      checkTime: String(cellF(r, COL.checkTime)),
+      maxUpdate: String(cellF(r, COL.maxUpdate)),
+      delayMin: Number(cellV(r, COL.delay)),
+      delayHuman: String(cellV(r, COL.delayHuman)),
+      status: String(cellV(r, COL.status))
+    };
+  }
+
+  function selectLatestSnapshot(normRows) {
+    var rows = normRows.filter(function (x) { return x && x.checkTime && x.checkTime !== 'null'; });
+    if (!rows.length) return { rows: [], checkTime: null };
+    var latest = rows.reduce(function (m, r) { return r.checkTime > m ? r.checkTime : m; }, rows[0].checkTime);
+    var snap = rows.filter(function (x) { return x.checkTime === latest; });
+    snap.forEach(function (x, i) { x.id = i; });
+    return { rows: snap, checkTime: latest };
+  }
+
+  return {
+    parseGvizText: parseGvizText, cellV: cellV, cellF: cellF,
+    normalizeRow: normalizeRow, selectLatestSnapshot: selectLatestSnapshot
+  };
 });

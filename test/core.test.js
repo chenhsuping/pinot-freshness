@@ -29,3 +29,32 @@ test('cellV and cellF read values', () => {
   assert.equal(Core.cellV(r0, 4), 240);
   assert.equal(Core.cellV({ c: [] }, 5), null);
 });
+
+test('normalizeRow maps HK columns to common model', () => {
+  const t = Core.parseGvizText(SNAP);
+  const n = Core.normalizeRow('HK', t.rows[0]);
+  assert.deepEqual(n, {
+    region: 'HK', bu: 'BKW', group: 'bjgroup', table: 'dim_account',
+    source: 'Offline', sla: 240, checkTime: '2026-06-24 12:00:11',
+    maxUpdate: '2026-06-24 07:43:02', delayMin: 257, delayHuman: '4時 17分', status: 'Breached'
+  });
+});
+
+test('normalizeRow returns null when BU missing', () => {
+  assert.equal(Core.normalizeRow('HK', { c: [{ v: null }] }), null);
+});
+
+test('selectLatestSnapshot keeps only the newest Check_Time batch', () => {
+  const t = Core.parseGvizText(SNAP);
+  const norm = t.rows.map(function (r) { return Core.normalizeRow('HK', r); });
+  const snap = Core.selectLatestSnapshot(norm);
+  assert.equal(snap.checkTime, '2026-06-24 12:00:11');
+  assert.equal(snap.rows.length, 4);
+  assert.deepEqual(snap.rows.map(function (r) { return r.id; }), [0, 1, 2, 3]);
+  const breach = snap.rows.filter(function (r) { return r.status === 'Breached'; }).length;
+  assert.equal(breach, 2);
+});
+
+test('selectLatestSnapshot handles empty input', () => {
+  assert.deepEqual(Core.selectLatestSnapshot([]), { rows: [], checkTime: null });
+});
