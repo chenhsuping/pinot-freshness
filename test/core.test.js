@@ -111,3 +111,42 @@ test('buildTrend produces deterministic SVG paths', () => {
   assert.equal(tr.lx, '300.0');
   assert.equal(tr.ly, '6.0');
 });
+
+test('mkColors maps breach to red and met realtime to green+blue', () => {
+  const br = Core.mkColors({ status: 'Breached', source: 'Offline' });
+  assert.equal(br.dotColor, '#E0584A');
+  assert.equal(br.pillText, '#C53D34');
+  assert.equal(br.pillLabel, '逾時');
+  assert.equal(br.srcBg, '#EEF1F5');
+  const ok = Core.mkColors({ status: 'Met', source: 'Realtime' });
+  assert.equal(ok.dotColor, '#34A06B');
+  assert.equal(ok.pillLabel, '正常');
+  assert.equal(ok.srcBg, '#E7F0FE');
+  assert.equal(ok.srcText, '#2F6FE0');
+});
+
+test('filterRows filters by breach/rt/off/all', () => {
+  const rows = [
+    { status: 'Breached', source: 'Offline' },
+    { status: 'Met', source: 'Realtime' },
+    { status: 'Met', source: 'Offline' }
+  ];
+  assert.equal(Core.filterRows(rows, 'all').length, 3);
+  assert.equal(Core.filterRows(rows, 'breach').length, 1);
+  assert.equal(Core.filterRows(rows, 'rt').length, 1);
+  assert.equal(Core.filterRows(rows, 'off').length, 2);
+});
+
+test('escHtml escapes dangerous chars', () => {
+  assert.equal(Core.escHtml('<a>&"'), '&lt;a&gt;&amp;&quot;');
+  assert.equal(Core.escHtml(null), '');
+});
+
+test('slaHuman / human / weekTicks format correctly', () => {
+  assert.equal(Core.slaHuman(240), '4小時');
+  assert.equal(Core.slaHuman(15), '15分');
+  assert.equal(Core.human(888), '14時48分');
+  assert.equal(Core.human(0), '0分');
+  assert.deepEqual(Core.weekTicks('2026-06-24 12:00:11'),
+    ['06/18 12時', '06/20 12時', '06/22 12時', '06/24 12時']);
+});

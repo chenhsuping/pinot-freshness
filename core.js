@@ -94,6 +94,51 @@
     return { spark: line.trim(), area: area, threshY: y(sla).toFixed(1), lx: ((n - 1) * step).toFixed(1), ly: y(vals[n - 1]).toFixed(1) };
   }
 
+  function mkColors(row) {
+    var br = row.status === 'Breached';
+    return {
+      accent: br ? '#E0584A' : '#EAEDF2',
+      dotColor: br ? '#E0584A' : '#34A06B',
+      delayColor: br ? '#C53D34' : '#1F8A5B',
+      pillBg: br ? '#FCEAE7' : '#E6F4EC',
+      pillText: br ? '#C53D34' : '#1F8A5B',
+      pillLabel: br ? '逾時' : '正常',
+      srcBg: row.source === 'Realtime' ? '#E7F0FE' : '#EEF1F5',
+      srcText: row.source === 'Realtime' ? '#2F6FE0' : '#5E6675'
+    };
+  }
+
+  function filterRows(rows, f) {
+    if (f === 'breach') return rows.filter(function (r) { return r.status === 'Breached'; });
+    if (f === 'rt') return rows.filter(function (r) { return r.source === 'Realtime'; });
+    if (f === 'off') return rows.filter(function (r) { return r.source === 'Offline'; });
+    return rows;
+  }
+
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function slaHuman(sla) { return sla % 60 === 0 ? (sla / 60) + '小時' : sla + '分'; }
+
+  function human(m) {
+    m = Math.max(0, Math.round(m));
+    var d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+    return (d ? d + '天' : '') + ((h || d) ? h + '時' : '') + mm + '分';
+  }
+
+  function weekTicks(checkTime) {
+    var base = parseTime({ v: checkTime });
+    if (!base) return ['', '', '', ''];
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    var lab = function (h) {
+      var x = new Date(base.getTime() - h * 3600000);
+      return p(x.getMonth() + 1) + '/' + p(x.getDate()) + ' ' + p(x.getHours()) + '時';
+    };
+    return [lab(144), lab(96), lab(48), lab(0)];
+  }
+
   function rowsOfBU(rows, bu) { return rows.filter(function (r) { return r.bu === bu; }); }
 
   function groupsInBU(rows, bu) {
@@ -117,6 +162,8 @@
     parseGvizText: parseGvizText, cellV: cellV, cellF: cellF,
     normalizeRow: normalizeRow, selectLatestSnapshot: selectLatestSnapshot,
     groupsInBU: groupsInBU, distinctTables: distinctTables, buOf: buOf,
-    parseTime: parseTime, extractHistory: extractHistory, buildTrend: buildTrend
+    parseTime: parseTime, extractHistory: extractHistory, buildTrend: buildTrend,
+    mkColors: mkColors, filterRows: filterRows, escHtml: escHtml,
+    slaHuman: slaHuman, human: human, weekTicks: weekTicks
   };
 });
