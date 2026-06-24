@@ -58,3 +58,26 @@ test('selectLatestSnapshot keeps only the newest Check_Time batch', () => {
 test('selectLatestSnapshot handles empty input', () => {
   assert.deepEqual(Core.selectLatestSnapshot([]), { rows: [], checkTime: null });
 });
+
+function snapRows() {
+  const t = Core.parseGvizText(SNAP);
+  return Core.selectLatestSnapshot(t.rows.map(function (r) { return Core.normalizeRow('HK', r); })).rows;
+}
+
+test('groupsInBU returns first-seen groups for a BU', () => {
+  const rows = snapRows();
+  assert.deepEqual(Core.groupsInBU(rows, 'MCD'), ['cxgroup', 'segroup']);
+  assert.deepEqual(Core.groupsInBU(rows, 'BKW'), ['bjgroup']);
+});
+
+test('distinctTables returns first-seen tables for a BU', () => {
+  const rows = snapRows();
+  assert.deepEqual(Core.distinctTables(rows, 'MCD'), ['dim_account', 'fact_game_transaction']);
+});
+
+test('buOf returns the BU owning a group', () => {
+  const rows = snapRows();
+  assert.equal(Core.buOf(rows, 'segroup'), 'MCD');
+  assert.equal(Core.buOf(rows, 'bjgroup'), 'BKW');
+  assert.equal(Core.buOf(rows, 'nope'), '');
+});

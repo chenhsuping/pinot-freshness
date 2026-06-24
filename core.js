@@ -52,8 +52,28 @@
     return { rows: snap, checkTime: latest };
   }
 
+  function rowsOfBU(rows, bu) { return rows.filter(function (r) { return r.bu === bu; }); }
+
+  function groupsInBU(rows, bu) {
+    var seen = [];
+    rowsOfBU(rows, bu).forEach(function (r) { if (seen.indexOf(r.group) < 0) seen.push(r.group); });
+    return seen;
+  }
+
+  function distinctTables(rows, bu) {
+    var seen = [];
+    rowsOfBU(rows, bu).forEach(function (r) { if (seen.indexOf(r.table) < 0) seen.push(r.table); });
+    return seen;
+  }
+
+  function buOf(rows, group) {
+    var r = rows.find(function (x) { return x.group === group; });
+    return r ? r.bu : '';
+  }
+
   return {
     parseGvizText: parseGvizText, cellV: cellV, cellF: cellF,
-    normalizeRow: normalizeRow, selectLatestSnapshot: selectLatestSnapshot
+    normalizeRow: normalizeRow, selectLatestSnapshot: selectLatestSnapshot,
+    groupsInBU: groupsInBU, distinctTables: distinctTables, buOf: buOf
   };
 });
