@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資料觀測 · 資料新鮮度儀表板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 密碼閘 -->
+  <div id="gate" hidden>
+    <div class="card">
+      <div class="title">資料觀測</div>
+      <div class="sub">資料新鮮度 / SLA 監測</div>
+      <label for="gate-input">密碼</label>
+      <input id="gate-input" type="password" autocomplete="current-password" inputmode="text" placeholder="請輸入密碼">
+      <button id="gate-btn" type="button">進入</button>
+      <div id="gate-err" class="err"></div>
+      <div class="note">提醒：此密碼僅為輕量遮擋，非真正加密；資料本身為公開可讀。</div>
+    </div>
+  </div>
+
+  <!-- 主畫面容器 -->
+  <div id="app" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

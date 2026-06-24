@@ -1,0 +1,56 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+button { font-family: inherit; }
+.scrollarea::-webkit-scrollbar { height: 0; }
+
+body {
+  background: #EDF0F5;
+  font-family: 'Space Grotesk', sans-serif;
+  color: #1C2433;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- 密碼閘 ---------- */
+#gate {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: #EDF0F5; padding: 24px;
+}
+#gate .card {
+  width: 100%; max-width: 340px;
+  background: #FFFFFF; border: 1px solid #EAEDF2; border-radius: 18px;
+  padding: 26px 22px; box-shadow: 0 10px 34px rgba(20, 30, 45, .12);
+}
+#gate .title { font: 600 19px 'Space Grotesk', sans-serif; letter-spacing: -.4px; }
+#gate .sub { font: 500 12px 'JetBrains Mono', monospace; color: #69727F; margin-top: 6px; }
+#gate label { display: block; font: 600 11px 'Space Grotesk', sans-serif; color: #9AA3AF; letter-spacing: .5px; margin: 20px 0 8px; }
+#gate input {
+  width: 100%; padding: 12px 14px; border: 1px solid #DCE0E7; border-radius: 11px;
+  font: 500 14px 'JetBrains Mono', monospace; color: #1C2433; outline: none; background: #FBFCFE;
+}
+#gate input:focus { border-color: #232B3D; }
+#gate button {
+  width: 100%; margin-top: 14px; padding: 12px; border: none; border-radius: 11px;
+  background: #232B3D; color: #FFFFFF; font: 600 14px 'Space Grotesk', sans-serif; cursor: pointer;
+}
+#gate button:active { transform: translateY(1px); }
+#gate .err { color: #C53D34; font: 500 12px 'Space Grotesk', sans-serif; margin-top: 12px; min-height: 16px; }
+#gate .note { color: #B0B6BD; font: 500 10.5px 'JetBrains Mono', monospace; margin-top: 16px; line-height: 1.5; }
+
+/* ---------- 載入 / 狀態 ---------- */
+.spinner {
+  width: 26px; height: 26px; border: 3px solid #DCE0E7; border-top-color: #232B3D;
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.center-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 80px 20px; text-align: center;
+}
+.center-state .msg { font: 500 13px 'Space Grotesk', sans-serif; color: #69727F; max-width: 360px; line-height: 1.6; }
+.center-state button {
+  border: 1px solid #DCE0E7; background: #FFFFFF; color: #1C2433; cursor: pointer;
+  padding: 9px 18px; border-radius: 999px; font: 600 12px 'Space Grotesk', sans-serif;
+}
+
+[hidden] { display: none !important; }
