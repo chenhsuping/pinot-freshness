@@ -128,6 +128,12 @@
     return (d ? d + '天' : '') + ((h || d) ? h + '時' : '') + mm + '分';
   }
 
+  function sha256Hex(str) {
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)).then(function (buf) {
+      return Array.prototype.map.call(new Uint8Array(buf), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    });
+  }
+
   function weekTicks(checkTime) {
     var base = parseTime({ v: checkTime });
     if (!base) return ['', '', '', ''];
@@ -164,6 +170,6 @@
     groupsInBU: groupsInBU, distinctTables: distinctTables, buOf: buOf,
     parseTime: parseTime, extractHistory: extractHistory, buildTrend: buildTrend,
     mkColors: mkColors, filterRows: filterRows, escHtml: escHtml,
-    slaHuman: slaHuman, human: human, weekTicks: weekTicks
+    slaHuman: slaHuman, human: human, weekTicks: weekTicks, sha256Hex: sha256Hex
   };
 });

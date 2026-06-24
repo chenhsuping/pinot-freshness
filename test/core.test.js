@@ -150,3 +150,10 @@ test('slaHuman / human / weekTicks format correctly', () => {
   assert.deepEqual(Core.weekTicks('2026-06-24 12:00:11'),
     ['06/18 12時', '06/20 12時', '06/22 12時', '06/24 12時']);
 });
+
+test('sha256Hex matches the configured password hash', async () => {
+  const h = await Core.sha256Hex('53343286@Di');
+  assert.equal(h, 'a4cce81663dc5e2bf18dfbf8d4a7c64fc4313b49210831c201d25927afe99c37');
+  const wrong = await Core.sha256Hex('wrong');
+  assert.notEqual(wrong, h);
+});
