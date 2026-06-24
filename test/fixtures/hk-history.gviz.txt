@@ -1,0 +1,6 @@
+/*O_o*/
+google.visualization.Query.setResponse({"version":"0.6","reqId":"0","status":"ok","sig":"2","table":{"cols":[{"id":"F","label":"Check_Time","type":"string"},{"id":"I","label":"Delay_Time","type":"number"}],"rows":[
+{"c":[{"v":"2026-06-24 12:00:11"},{"v":257,"f":"257"}]},
+{"c":[{"v":"2026-06-24 11:00:11"},{"v":197,"f":"197"}]},
+{"c":[{"v":"2026-06-23 11:00:11"},{"v":50,"f":"50"}]}
+]}});

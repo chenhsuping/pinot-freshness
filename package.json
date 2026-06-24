@@ -1,0 +1,9 @@
+{
+  "name": "data-freshness-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "description": "HK data freshness dashboard (zero-build static app + node:test suite)",
+  "scripts": {
+    "test": "node --test"
+  }
+}
