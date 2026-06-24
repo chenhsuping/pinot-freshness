@@ -1,0 +1,44 @@
+# 人工驗收案例（每次改 UI 後重跑）
+
+前置：`cd dashboard && python -m http.server 8080`，開 http://localhost:8080/
+（手機外框：http://localhost:8080/MobilePreview.html）
+
+## A. 密碼閘（access-gate）
+- [ ] A1 首次開啟顯示密碼卡；輸入錯誤密碼 → 顯示「密碼錯誤」、不進入。
+- [ ] A2 輸入 `53343286@Di` → 進入主畫面。
+- [ ] A3 重新整理頁面 → 不再要求密碼（localStorage 記住）。
+- [ ] A4 點右上「⎋」登出 → 重新要求密碼。
+
+## B. 首頁（menu）
+- [ ] B1 副標顯示「更新 {時間} · N 群組 / M 張表」。
+- [ ] B2 預設「依群組」+ BU=MCD：顯示 cxgroup/segroup/mcwgroup 卡，每卡左側健康度色塊（紅=有逾時/綠=全正常）。
+- [ ] B3 點 BU=BKW → 變成 bjgroup 卡（清單重新推導）。
+- [ ] B4 切「依資料表」→ 顯示該 BU 不重複資料表列 + 狀態 pill。
+
+## C. 下鑽與導覽（nav stack）
+- [ ] C1 點一張群組卡 → 進入該群組資料表清單；左上「‹」可返回首頁。
+- [ ] C2 群組頁點「只看異常」→ 只剩 Breached 的表；點「Realtime/Offline」對應篩選；切群組頁時篩選回「全部」。
+- [ ] C3 「依資料表」點一張表 → 進入「該表在各群組」頁，只列含此表的群組。
+- [ ] C4 任一表卡點進去 → 詳情頁。
+
+## D. 詳情頁（近七天累積 Downtime）
+- [ ] D1 狀態條標籤固定「近七天累積 Downtime」、右側顯示累積延遲（人性化），顏色依狀態（紅/綠）。
+- [ ] D2 趨勢卡先顯示 spinner，稍後出現 SVG 折線 + SLA 虛線門檻 + 端點（真實七天歷史），X 軸為 4 個 `MM/DD HH時` 刻度。
+- [ ] D3 資訊卡四列：檢查時間、資料更新時間、近七天 SLA 總時數、近七天累積 Downtime（末列顏色=狀態色）。
+- [ ] D4 找一張歷史很少的表，趨勢卡顯示「尚無歷史資料點」或單點，不報錯。
+
+## E. 狀態與重新整理
+- [ ] E1 點「↻」→ 短暫載入後資料與副標時間更新。
+- [ ] E2（模擬錯誤）把 config.js 的 HK id 暫改成錯的 → 重新整理頁面 → 顯示「讀取失敗…請確認 sheet 已設為可檢視」+「重試」鈕；改回後重試恢復。
+
+## F. 響應式（手機/電腦）
+- [ ] F1 桌面寬視窗：卡片多欄。
+- [ ] F2 DevTools 切 iPhone 寬（≤390px）或開 MobilePreview.html：卡片單欄、不溢出、可點擊操作。
+
+## G. 部署（deployment）
+- [ ] G1 `git ls-files | grep -i '\.R$'` 回 CLEAN（無 .R 憑證入庫）。
+- [ ] G2 `CNAME` 內容為 `hsuping.org`。
+- [ ] G3 push 到 GitHub 公開 repo；Settings→Pages→Source=main/root。
+- [ ] G4 DNS 設 A 記錄 185.199.108.153 / 109.153 / 110.153 / 111.153。
+- [ ] G5 憑證簽發後勾 Enforce HTTPS；https://hsuping.org 可開、顯示儀表板。
+- [ ] G6 手機實機開 https://hsuping.org 確認可查詢、可下鑽。
