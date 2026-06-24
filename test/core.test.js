@@ -83,6 +83,7 @@ test('buOf returns the BU owning a group', () => {
 });
 
 const HIST = fs.readFileSync(path.join(__dirname, 'fixtures/hk-history.gviz.txt'), 'utf8');
+const HIST_FGI = fs.readFileSync(path.join(__dirname, 'fixtures/hk-history-fgi.gviz.txt'), 'utf8');
 
 test('parseTime handles Date() and plain string', () => {
   const d1 = Core.parseTime({ v: 'Date(2026,5,24,12,0,11)' });
@@ -149,6 +150,49 @@ test('slaHuman / human / weekTicks format correctly', () => {
   assert.equal(Core.human(0), '0分');
   assert.deepEqual(Core.weekTicks('2026-06-24 12:00:11'),
     ['06/18 12時', '06/20 12時', '06/22 12時', '06/24 12時']);
+});
+
+test('extractRecords parses F,G,I rows with breached flag and G-missing fallback', () => {
+  const t = Core.parseGvizText(HIST_FGI);
+  const recs = Core.extractRecords(t, 240);
+  assert.equal(recs.length, 6);
+  // record 0: G present, delay=257 > sla=240 → breached
+  assert.equal(recs[0].checkTime, '2026-06-24 12:00:11');
+  assert.equal(recs[0].maxUpdate, '2026-06-24 11:55:00');
+  assert.equal(recs[0].delayMin, 257);
+  assert.equal(recs[0].delay, 257);  // compat alias
+  assert.equal(recs[0].breached, true);
+  // record 1: G missing → fallback maxUpdate = checkTime - delayMin
+  assert.equal(recs[1].checkTime, '2026-06-24 11:00:11');
+  assert.equal(recs[1].maxUpdate, '2026-06-24 07:43:11'); // 11:00:11 - 197min
+  assert.equal(recs[1].breached, false);
+});
+
+test('sliceByRange filters 24h/3d/7d windows and returns newest-first', () => {
+  const t = Core.parseGvizText(HIST_FGI);
+  const recs = Core.extractRecords(t, 240);
+  const ref = '2026-06-24 12:00:11';
+  const s24 = Core.sliceByRange(recs, ref, '24h');
+  assert.equal(s24.length, 3);
+  assert.equal(s24[0].checkTime, '2026-06-24 12:00:11'); // newest first
+  const s3d = Core.sliceByRange(recs, ref, '3d');
+  assert.equal(s3d.length, 4);
+  const s7d = Core.sliceByRange(recs, ref, '7d');
+  assert.equal(s7d.length, 5);
+});
+
+test('summarizeRange counts total and breached records', () => {
+  const slice = [{ breached: true }, { breached: false }, { breached: true }];
+  const s = Core.summarizeRange(slice);
+  assert.equal(s.count, 3);
+  assert.equal(s.breachedCount, 2);
+  assert.deepEqual(Core.summarizeRange([]), { count: 0, breachedCount: 0 });
+});
+
+test('fmtRangeLabel returns correct Chinese labels', () => {
+  assert.equal(Core.fmtRangeLabel('24h'), '近24小時');
+  assert.equal(Core.fmtRangeLabel('3d'), '近3天');
+  assert.equal(Core.fmtRangeLabel('7d'), '近7天');
 });
 
 test('sha256Hex matches the configured password hash', async () => {

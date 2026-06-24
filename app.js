@@ -17,7 +17,9 @@
     error: null,
     data: [],            // 最新快照（共同模型）
     checkTime: null,
-    history: {},         // id -> {status, points}
+    history: {},         // id -> {status, records}
+    tab: 'overview',     // 詳情頁籤：overview | history
+    range: '24h',        // 歷史範圍：24h | 3d | 7d
   };
 
   var app = document.getElementById('app');
@@ -85,10 +87,17 @@
         '</div>' + toolBtnsHdr();
     } else {
       var detRow = state.data.find(function (r) { return r.id === top.id; }) || {};
+      var chipBg = detRow.source === 'Realtime' ? 'rgba(77,163,255,.18)' : 'rgba(255,255,255,.12)';
+      var chipText = detRow.source === 'Realtime' ? '#8CC4FF' : '#D6DBE4';
+      var slaText = detRow.sla ? 'SLA ' + Core.slaHuman(detRow.sla) : '';
       inner = backBtnHdr() +
         '<div style="flex:1;min-width:0;">' +
           '<div style="font:600 clamp(15px,2.2vw,18px) \'JetBrains Mono\',monospace;color:#FFFFFF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(detRow.table || '') + '</div>' +
-          '<div style="font:500 11px \'Space Grotesk\',sans-serif;color:#9AA6B6;margin-top:3px;">' + esc((detRow.bu || '') + ' · ' + (detRow.group || '')) + '</div>' +
+          '<div style="display:flex;align-items:center;gap:7px;margin-top:3px;flex-wrap:wrap;">' +
+            '<span style="font:500 11px \'Space Grotesk\',sans-serif;color:#9AA6B6;">' + esc((detRow.bu || '') + ' · ' + (detRow.group || '')) + '</span>' +
+            (detRow.source ? '<span style="font:600 10px \'Space Grotesk\',sans-serif;padding:2px 7px;border-radius:5px;background:' + chipBg + ';color:' + chipText + ';">' + esc(detRow.source) + '</span>' : '') +
+            (slaText ? '<span style="font:500 10px \'JetBrains Mono\',monospace;color:#9AA6B6;">' + esc(slaText) + '</span>' : '') +
+          '</div>' +
         '</div>' + toolBtnsHdr();
     }
 
@@ -123,10 +132,10 @@
   }
 
   function loadHistory(row) {
-    var tq = "select F, I where A = '" + gEsc(row.bu) + "' and B = '" + gEsc(row.group) +
+    var tq = "select F, G, I where A = '" + gEsc(row.bu) + "' and B = '" + gEsc(row.group) +
       "' and C = '" + gEsc(row.table) + "' order by F desc limit 800";
     return gvizQuery(row.region, tq).then(function (table) {
-      return Core.extractHistory(table, CONFIG.trendDays * 24);
+      return Core.extractRecords(table, row.sla);
     });
   }
 
@@ -160,7 +169,9 @@
       html = Views.viewDetail({
         row: state.data.find(function (r) { return r.id === top.id; }),
         checkTime: state.checkTime,
-        history: state.history[top.id]
+        history: state.history[top.id],
+        tab: state.tab,
+        range: state.range
       });
     }
     app.innerHTML = renderHeader() + wrap(html);
@@ -177,6 +188,8 @@
     else if (a === 'openTable') { state.stack.push({ type: 'tableGroups', bu: state.bu, table: el.getAttribute('data-table') }); render(); }
     else if (a === 'gfilter') { state.gFilter = el.getAttribute('data-val'); render(); }
     else if (a === 'openDetail') { openDetail(Number(el.getAttribute('data-id'))); }
+    else if (a === 'tab') { state.tab = el.getAttribute('data-val'); render(); }
+    else if (a === 'range') { state.range = el.getAttribute('data-val'); render(); }
     else if (a === 'back') { state.stack.pop(); render(); }
     else if (a === 'refresh') { reload(); }
     else if (a === 'logout') { logout(); }
@@ -188,13 +201,15 @@
   }
 
   function openDetail(id) {
+    state.tab = 'overview';
+    state.range = '24h';
     state.stack.push({ type: 'detail', id: id });
     render();
     if (!state.history[id]) {
       var row = state.data.find(function (r) { return r.id === id; });
       state.history[id] = { status: 'loading' };
-      loadHistory(row).then(function (pts) {
-        state.history[id] = { status: 'ready', points: pts };
+      loadHistory(row).then(function (records) {
+        state.history[id] = { status: 'ready', records: records };
         if (currentDetailId() === id) render();
       }).catch(function () {
         state.history[id] = { status: 'error' };

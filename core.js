@@ -128,6 +128,50 @@
     return (d ? d + '天' : '') + ((h || d) ? h + '時' : '') + mm + '分';
   }
 
+  function fmtDatetime(d) {
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' +
+      p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  function extractRecords(table, sla) {
+    return (table.rows || []).map(function (r) {
+      var checkTimeStr = cellF(r, 0) || '';
+      var maxUpdateRaw = cellF(r, 1);
+      var delayMin = Number(cellV(r, 2));
+      if (!checkTimeStr || isNaN(delayMin)) return null;
+      var breached = delayMin > sla;
+      var maxUpdate;
+      if (maxUpdateRaw) {
+        maxUpdate = String(maxUpdateRaw);
+      } else {
+        var ct = parseTime({ v: checkTimeStr, f: checkTimeStr });
+        maxUpdate = ct ? fmtDatetime(new Date(ct.getTime() - delayMin * 60000)) : '';
+      }
+      return { checkTime: checkTimeStr, maxUpdate: maxUpdate, delayMin: delayMin, delay: delayMin, breached: breached };
+    }).filter(Boolean);
+  }
+
+  function sliceByRange(records, checkTime, rangeKey) {
+    var hours = rangeKey === '24h' ? 24 : rangeKey === '3d' ? 72 : 168;
+    var ref = parseTime({ v: checkTime, f: checkTime });
+    var cutoff = ref ? ref.getTime() - hours * 3600000 : 0;
+    return records.filter(function (rec) {
+      var t = parseTime({ v: rec.checkTime, f: rec.checkTime });
+      return t && t.getTime() >= cutoff;
+    }).sort(function (a, b) {
+      return a.checkTime < b.checkTime ? 1 : a.checkTime > b.checkTime ? -1 : 0;
+    });
+  }
+
+  function summarizeRange(slice) {
+    return { count: slice.length, breachedCount: slice.filter(function (r) { return r.breached; }).length };
+  }
+
+  function fmtRangeLabel(rangeKey) {
+    return rangeKey === '24h' ? '近24小時' : rangeKey === '3d' ? '近3天' : '近7天';
+  }
+
   function sha256Hex(str) {
     return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)).then(function (buf) {
       return Array.prototype.map.call(new Uint8Array(buf), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
@@ -170,6 +214,8 @@
     groupsInBU: groupsInBU, distinctTables: distinctTables, buOf: buOf,
     parseTime: parseTime, extractHistory: extractHistory, buildTrend: buildTrend,
     mkColors: mkColors, filterRows: filterRows, escHtml: escHtml,
-    slaHuman: slaHuman, human: human, weekTicks: weekTicks, sha256Hex: sha256Hex
+    slaHuman: slaHuman, human: human, weekTicks: weekTicks, sha256Hex: sha256Hex,
+    extractRecords: extractRecords, sliceByRange: sliceByRange,
+    summarizeRange: summarizeRange, fmtRangeLabel: fmtRangeLabel
   };
 });
