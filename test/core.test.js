@@ -81,3 +81,33 @@ test('buOf returns the BU owning a group', () => {
   assert.equal(Core.buOf(rows, 'bjgroup'), 'BKW');
   assert.equal(Core.buOf(rows, 'nope'), '');
 });
+
+const HIST = fs.readFileSync(path.join(__dirname, 'fixtures/hk-history.gviz.txt'), 'utf8');
+
+test('parseTime handles Date() and plain string', () => {
+  const d1 = Core.parseTime({ v: 'Date(2026,5,24,12,0,11)' });
+  assert.equal(d1.getFullYear(), 2026);
+  assert.equal(d1.getMonth(), 5);   // 0-based, 5 = June
+  assert.equal(d1.getDate(), 24);
+  assert.equal(d1.getHours(), 12);
+  const d2 = Core.parseTime({ v: '2026-06-24 12:00:11' });
+  assert.equal(d2.getFullYear(), 2026);
+  assert.equal(d2.getHours(), 12);
+  assert.equal(Core.parseTime(null), null);
+});
+
+test('extractHistory filters to last N hours, chronological', () => {
+  const t = Core.parseGvizText(HIST);
+  const pts = Core.extractHistory(t, 24);
+  assert.equal(pts.length, 2); // 23號 11:00 在 24h 視窗外
+  assert.deepEqual(pts.map(function (p) { return p.delay; }), [197, 257]);
+});
+
+test('buildTrend produces deterministic SVG paths', () => {
+  const tr = Core.buildTrend([{ delay: 10 }, { delay: 20 }], 15);
+  assert.equal(tr.spark, 'M0.0 42.0 L300.0 6.0');
+  assert.equal(tr.area, 'M0 78 L0.0 42.0 L300.0 6.0 L300 78 Z');
+  assert.equal(tr.threshY, '24.0');
+  assert.equal(tr.lx, '300.0');
+  assert.equal(tr.ly, '6.0');
+});

@@ -52,6 +52,48 @@
     return { rows: snap, checkTime: latest };
   }
 
+  function parseTime(cell) {
+    if (!cell) return null;
+    var v = cell.v, f = cell.f;
+    if (typeof v === 'string') {
+      var m = v.match(/^Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?/);
+      if (m) return new Date(+m[1], +m[2], +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+    }
+    var s = f || (typeof v === 'string' ? v : null);
+    if (s) { var d = new Date(s.replace(/-/g, '/').replace('T', ' ')); if (!isNaN(d)) return d; }
+    if (typeof v === 'number') return new Date(v);
+    return null;
+  }
+
+  function extractHistory(table, hours) {
+    var pts = (table.rows || []).map(function (r) {
+      return { t: parseTime(r.c && r.c[0]), delay: Number(cellV(r, 1)) };
+    }).filter(function (p) { return p.t && !isNaN(p.delay); });
+    pts.reverse();
+    if (pts.length >= 2) {
+      var last = pts[pts.length - 1].t.getTime();
+      var cutoff = last - hours * 3600 * 1000;
+      var within = pts.filter(function (p) { return p.t.getTime() >= cutoff; });
+      if (within.length >= 2) return within;
+    }
+    return pts;
+  }
+
+  function buildTrend(points, sla) {
+    var W = 300, top = 6, bottom = 78, plotH = bottom - top;
+    var vals = points.map(function (p) { return p.delay; });
+    var max = Math.max.apply(null, vals.concat([sla * 1.15, 1]));
+    var n = vals.length, step = W / (n > 1 ? (n - 1) : 1);
+    var y = function (v) { return bottom - (v / max) * plotH; };
+    var line = '', area = 'M0 ' + bottom + ' ';
+    vals.forEach(function (v, i) {
+      var x = (i * step).toFixed(1), yy = y(v).toFixed(1);
+      line += (i ? 'L' : 'M') + x + ' ' + yy + ' '; area += 'L' + x + ' ' + yy + ' ';
+    });
+    area += 'L' + W + ' ' + bottom + ' Z';
+    return { spark: line.trim(), area: area, threshY: y(sla).toFixed(1), lx: ((n - 1) * step).toFixed(1), ly: y(vals[n - 1]).toFixed(1) };
+  }
+
   function rowsOfBU(rows, bu) { return rows.filter(function (r) { return r.bu === bu; }); }
 
   function groupsInBU(rows, bu) {
@@ -74,6 +116,7 @@
   return {
     parseGvizText: parseGvizText, cellV: cellV, cellF: cellF,
     normalizeRow: normalizeRow, selectLatestSnapshot: selectLatestSnapshot,
-    groupsInBU: groupsInBU, distinctTables: distinctTables, buOf: buOf
+    groupsInBU: groupsInBU, distinctTables: distinctTables, buOf: buOf,
+    parseTime: parseTime, extractHistory: extractHistory, buildTrend: buildTrend
   };
 });
