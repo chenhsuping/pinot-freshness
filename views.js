@@ -6,17 +6,6 @@
 })(typeof self !== 'undefined' ? self : this, function (C) {
   'use strict';
 
-  function toolbarBtns() {
-    return '<button data-action="refresh" title="重新整理" style="width:38px;height:38px;border:1px solid #DCE0E7;border-radius:11px;background:#FFFFFF;cursor:pointer;font-size:15px;color:#3A424C;">↻</button>' +
-      '<button data-action="logout" title="登出" style="width:38px;height:38px;border:1px solid #DCE0E7;border-radius:11px;background:#FFFFFF;cursor:pointer;font-size:15px;color:#3A424C;">⎋</button>';
-  }
-  function backBtn() {
-    return '<button data-action="back" style="width:38px;height:38px;border:1px solid #E3E6EA;border-radius:11px;background:#FFFFFF;cursor:pointer;font-size:19px;color:#3A424C;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">‹</button>';
-  }
-  function backBtnSmall() {
-    return '<button data-action="back" style="width:34px;height:34px;border:1px solid #E3E6EA;border-radius:10px;background:#FFFFFF;cursor:pointer;font-size:18px;line-height:1;color:#3A424C;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">‹</button>';
-  }
-
   function cardTable(row) {
     var m = C.mkColors(row);
     return '<button data-action="openDetail" data-id="' + row.id + '" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#FFFFFF;border:1px solid #EAEDF2;border-left:3px solid ' + m.accent + ';border-radius:14px;padding:12px 13px;cursor:pointer;">' +
@@ -32,11 +21,9 @@
       '</div></button>';
   }
 
+  /* 首頁：mode segmented + BU pills + 卡片格 */
   function viewMenu(p) {
     var rows = p.rows, esc = C.escHtml;
-    var seen = [], nGroups = 0;
-    rows.forEach(function (r) { if (seen.indexOf(r.group) < 0) { seen.push(r.group); nGroups++; } });
-    var sub = '更新 ' + esc(p.checkTime || '—') + ' · ' + nGroups + ' 群組 / ' + rows.length + ' 張表';
     var modeSeg = [['byGroup', '依群組'], ['byTable', '依資料表']].map(function (o) {
       var on = p.mode === o[0];
       return '<button data-action="mode" data-val="' + o[0] + '" style="border:none;cursor:pointer;padding:9px 18px;border-radius:9px;font:600 13px \'Space Grotesk\',sans-serif;background:' +
@@ -47,15 +34,10 @@
       return '<button data-action="bu" data-val="' + b + '" style="border:1px solid ' + (on ? '#232B3D' : '#DCE0E7') + ';cursor:pointer;padding:8px 16px;border-radius:999px;font:600 12px \'JetBrains Mono\',monospace;background:' +
         (on ? '#232B3D' : '#FFFFFF') + ';color:' + (on ? '#FFFFFF' : '#5E6675') + ';">' + b + '</button>';
     }).join('');
-    var header =
-      '<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:clamp(18px,3vw,26px);">' +
-        '<div><div style="font:600 clamp(22px,3.4vw,30px) \'Space Grotesk\',sans-serif;letter-spacing:-.6px;">資料觀測</div>' +
-        '<div style="font:500 12px \'JetBrains Mono\',monospace;color:#69727F;margin-top:6px;">' + sub + '</div></div>' +
-        '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
-          '<div style="display:inline-flex;gap:4px;background:#E5E9F0;border-radius:12px;padding:4px;">' + modeSeg + '</div>' +
-          '<div style="display:flex;gap:6px;align-items:center;"><span style="font:500 11px \'Space Grotesk\',sans-serif;color:#8A919A;">BU</span>' + buSeg + '</div>' +
-          '<div style="display:flex;gap:6px;">' + toolbarBtns() + '</div>' +
-        '</div></div>';
+    var controls = '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:clamp(18px,3vw,26px);">' +
+      '<div style="display:inline-flex;gap:4px;background:#E5E9F0;border-radius:12px;padding:4px;">' + modeSeg + '</div>' +
+      '<div style="display:flex;gap:6px;align-items:center;"><span style="font:500 11px \'Space Grotesk\',sans-serif;color:#8A919A;">BU</span>' + buSeg + '</div>' +
+      '</div>';
     var listLabel = '<div style="font:600 11px \'Space Grotesk\',sans-serif;color:#9AA3AF;letter-spacing:.5px;margin-bottom:11px;">' +
       (p.mode === 'byGroup' ? '群組 GROUP_NAME' : '資料表 TABLE_NAME') + '</div>';
     var grid;
@@ -84,28 +66,22 @@
       }).join('');
       grid = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:9px;">' + tcards + '</div>';
     }
-    return header + listLabel + grid;
+    return controls + listLabel + grid;
   }
 
+  /* 群組資料表列表：篩選 chips + 卡片格（標題/返回在全域 header） */
   function viewGroupTables(p) {
-    var esc = C.escHtml;
     var all = p.rows.filter(function (r) { return r.group === p.group; });
-    var br = all.filter(function (r) { return r.status === 'Breached'; }).length;
-    var meta = br > 0 ? (all.length + ' 張 · ' + br + ' 逾時') : (all.length + ' 張 · 全部正常');
     var chips = [['all', '全部'], ['breach', '只看異常'], ['rt', 'Realtime'], ['off', 'Offline']].map(function (o) {
       var on = p.gFilter === o[0];
       return '<button data-action="gfilter" data-val="' + o[0] + '" style="flex:0 0 auto;border:none;cursor:pointer;padding:8px 15px;border-radius:999px;font:600 12px \'Space Grotesk\',sans-serif;background:' + (on ? '#232B3D' : '#EEF1F5') + ';color:' + (on ? '#FFFFFF' : '#555E6B') + ';">' + o[1] + '</button>';
     }).join('');
     var list = C.filterRows(all, p.gFilter).map(cardTable).join('');
-    return '<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">' + backBtn() +
-        '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:9px;"><div style="font:600 clamp(18px,2.6vw,22px) \'Space Grotesk\',sans-serif;">' + esc(p.group) + '</div>' +
-        '<span style="font:600 10px \'Space Grotesk\',sans-serif;padding:3px 8px;border-radius:6px;background:#EEF1F5;color:#5E6675;">' + esc(C.buOf(p.rows, p.group)) + '</span></div>' +
-        '<div style="font:500 12px \'JetBrains Mono\',monospace;color:' + (br > 0 ? '#C53D34' : '#1F8A5B') + ';margin-top:4px;">' + meta + '</div></div>' +
-        '<div style="display:flex;gap:6px;">' + toolbarBtns() + '</div></div>' +
-      '<div class="scrollarea" style="display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap;">' + chips + '</div>' +
+    return '<div class="scrollarea" style="display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap;">' + chips + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:9px;">' + list + '</div>';
   }
 
+  /* 資料表跨群組列表（標題/返回在全域 header） */
   function viewTableGroups(p) {
     var esc = C.escHtml;
     var rows = C.groupsInBU(p.rows, p.bu).map(function (g) {
@@ -121,14 +97,10 @@
         '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto;"><div style="font:600 13px \'JetBrains Mono\',monospace;color:' + m.delayColor + ';">' + esc(row.delayHuman) + '</div>' +
         '<span style="font:600 10px \'Space Grotesk\',sans-serif;padding:2px 9px;border-radius:6px;background:' + m.pillBg + ';color:' + m.pillText + ';">' + m.pillLabel + '</span></div></button>';
     }).join('');
-    return '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">' + backBtn() +
-        '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:9px;"><div style="font:600 clamp(16px,2.4vw,20px) \'JetBrains Mono\',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.table) + '</div>' +
-        '<span style="font:600 10px \'Space Grotesk\',sans-serif;padding:3px 8px;border-radius:6px;background:#EEF1F5;color:#5E6675;flex:0 0 auto;">' + esc(p.bu) + '</span></div>' +
-        '<div style="font:500 12px \'Space Grotesk\',sans-serif;color:#69727F;margin-top:4px;">此資料表在各 group_name 的最新狀態</div></div>' +
-        '<div style="display:flex;gap:6px;">' + toolbarBtns() + '</div></div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:9px;">' + cards + '</div>';
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:9px;">' + cards + '</div>';
   }
 
+  /* 詳情頁：狀態條 + 趨勢卡 + 資訊卡（標題/返回在全域 header） */
   function viewDetail(p) {
     var esc = C.escHtml, row = p.row;
     if (!row) return '<div class="center-state"><div class="msg">找不到資料</div></div>';
@@ -165,11 +137,7 @@
         '<span style="font:600 12.5px \'JetBrains Mono\',monospace;color:' + (color || '#1C2433') + ';">' + esc(val) + '</span></div>';
     }
     return '<div style="max-width:860px;">' +
-      '<div style="display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid #ECEFF2;">' + backBtnSmall() +
-        '<div style="flex:1;min-width:0;"><div style="font:600 clamp(15px,2.2vw,18px) \'JetBrains Mono\',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(row.table) + '</div>' +
-        '<div style="font:500 12px \'Space Grotesk\',sans-serif;color:#7A828C;margin-top:3px;">' + esc(row.bu) + ' · ' + esc(row.group) + '</div></div>' +
-        '<div style="display:flex;gap:6px;">' + toolbarBtns() + '</div></div>' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;background:' + accentBg + ';border-radius:12px;padding:14px 16px;margin-top:16px;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;background:' + accentBg + ';border-radius:12px;padding:14px 16px;">' +
         '<div style="display:flex;align-items:center;gap:9px;"><div style="width:9px;height:9px;border-radius:50%;background:' + accentLine + ';"></div>' +
         '<div style="font:600 14px \'Space Grotesk\',sans-serif;color:' + accentText + ';">近七天累積 Downtime</div></div>' +
         '<div style="font:600 16px \'JetBrains Mono\',monospace;color:' + accentText + ';">' + esc(downtimeHuman) + '</div></div>' +

@@ -11,11 +11,9 @@ function snap() {
   return Core.selectLatestSnapshot(t.rows.map(function (r) { return Core.normalizeRow('HK', r); }));
 }
 
-test('viewMenu byGroup shows health % and subtitle counts', () => {
+test('viewMenu byGroup shows health % and group cards', () => {
   const s = snap();
   const html = Views.viewMenu({ mode: 'byGroup', bu: 'MCD', rows: s.rows, checkTime: s.checkTime });
-  assert.match(html, /更新 2026-06-24 12:00:11/);
-  assert.match(html, /3 群組 \/ 4 張表/);   // 3 distinct groups, 4 rows
   assert.match(html, /cxgroup/);
   assert.match(html, /segroup/);
   assert.match(html, /100%/);                // cxgroup: 2 列 0 逾時
@@ -29,10 +27,9 @@ test('viewMenu byTable lists distinct tables with pills', () => {
   assert.match(html, /fact_game_transaction/);
 });
 
-test('viewGroupTables filters breach-only and shows back/filter chips', () => {
+test('viewGroupTables filters breach-only and shows filter chips', () => {
   const s = snap();
   const all = Views.viewGroupTables({ group: 'cxgroup', bu: 'MCD', rows: s.rows, gFilter: 'all' });
-  assert.match(all, /data-action="back"/);
   assert.match(all, /只看異常/);
   assert.match(all, /dim_account/);
   assert.match(all, /fact_game_transaction/);

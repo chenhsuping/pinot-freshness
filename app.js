@@ -1,4 +1,4 @@
-/* 資料觀測儀表板 — app.js（狀態機、事件委派、fetch、密碼閘、DOM 注入）
+/* Pinot 資料新鮮度監測 — app.js（狀態機、事件委派、fetch、密碼閘、DOM 注入）
  * 純資料邏輯在 core.js（DFCore），HTML 產生器在 views.js（DFViews）。 */
 (function () {
   'use strict';
@@ -22,6 +22,81 @@
 
   var app = document.getElementById('app');
   var refreshTimer = null;
+
+  /* ----------------------------- 全域 sticky header ----------------------------- */
+  var BRAND_MARK =
+    '<div style="width:30px;height:30px;border-radius:9px;background:#8C2F4A;display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);">' +
+      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#F2D9E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M7 3h10l-1 6a4 4 0 0 1-8 0z"></path>' +
+        '<line x1="12" y1="13" x2="12" y2="20"></line>' +
+        '<line x1="8" y1="20" x2="16" y2="20"></line>' +
+      '</svg></div>';
+
+  var HDR_BTN = 'width:36px;height:36px;border:1px solid rgba(255,255,255,.16);border-radius:10px;background:rgba(255,255,255,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:15px;color:#FFFFFF;';
+
+  function toolBtnsHdr() {
+    return '<div style="display:flex;gap:6px;">' +
+      '<button data-action="refresh" title="重新整理" style="' + HDR_BTN + '">↻</button>' +
+      '<button data-action="logout" title="登出" style="' + HDR_BTN + '">⎋</button>' +
+      '</div>';
+  }
+
+  function backBtnHdr() {
+    return '<button data-action="back" style="' + HDR_BTN + 'font-size:20px;">‹</button>';
+  }
+
+  function renderHeader() {
+    var top = state.stack[state.stack.length - 1];
+    var screen = top ? top.type : 'menu';
+    var esc = Core.escHtml;
+    var inner;
+
+    if (screen === 'menu') {
+      var nGroups = 0, seen = [];
+      state.data.forEach(function (r) { if (seen.indexOf(r.group) < 0) { seen.push(r.group); nGroups++; } });
+      var meta = state.checkTime
+        ? '更新 ' + esc(state.checkTime) + ' · ' + nGroups + ' 群組 / ' + state.data.length + ' 張表'
+        : '載入中…';
+      inner = BRAND_MARK +
+        '<div style="font:600 clamp(16px,2.4vw,20px) \'Space Grotesk\',sans-serif;color:#FFFFFF;letter-spacing:-.3px;">Pinot 資料新鮮度監測</div>' +
+        '<div style="font:500 11px \'JetBrains Mono\',monospace;color:#9AA6B6;margin-left:auto;white-space:nowrap;">' + meta + '</div>' +
+        toolBtnsHdr();
+    } else if (screen === 'groupTables') {
+      var grpRows = state.data.filter(function (r) { return r.group === top.group; });
+      var grpBr = grpRows.filter(function (r) { return r.status === 'Breached'; }).length;
+      var grpMetaColor = grpBr > 0 ? '#FF9B90' : '#7FE0AE';
+      var grpMetaText = grpBr > 0 ? (grpRows.length + ' 張 · ' + grpBr + ' 逾時') : (grpRows.length + ' 張 · 全部正常');
+      inner = backBtnHdr() +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:9px;">' +
+            '<div style="font:600 clamp(16px,2.4vw,20px) \'Space Grotesk\',sans-serif;color:#FFFFFF;">' + esc(top.group) + '</div>' +
+            '<span style="font:600 10px \'Space Grotesk\',sans-serif;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.12);color:#D6DBE4;">' + esc(top.bu) + '</span>' +
+          '</div>' +
+          '<div style="font:500 11px \'JetBrains Mono\',monospace;color:' + grpMetaColor + ';margin-top:3px;">' + esc(grpMetaText) + '</div>' +
+        '</div>' + toolBtnsHdr();
+    } else if (screen === 'tableGroups') {
+      inner = backBtnHdr() +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:9px;">' +
+            '<div style="font:600 clamp(15px,2.2vw,18px) \'JetBrains Mono\',monospace;color:#FFFFFF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(top.table) + '</div>' +
+            '<span style="font:600 10px \'Space Grotesk\',sans-serif;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.12);color:#D6DBE4;flex:0 0 auto;">' + esc(top.bu) + '</span>' +
+          '</div>' +
+          '<div style="font:500 11px \'Space Grotesk\',sans-serif;color:#9AA6B6;margin-top:3px;">此資料表在各 group_name 的最新狀態</div>' +
+        '</div>' + toolBtnsHdr();
+    } else {
+      var detRow = state.data.find(function (r) { return r.id === top.id; }) || {};
+      inner = backBtnHdr() +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font:600 clamp(15px,2.2vw,18px) \'JetBrains Mono\',monospace;color:#FFFFFF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(detRow.table || '') + '</div>' +
+          '<div style="font:500 11px \'Space Grotesk\',sans-serif;color:#9AA6B6;margin-top:3px;">' + esc((detRow.bu || '') + ' · ' + (detRow.group || '')) + '</div>' +
+        '</div>' + toolBtnsHdr();
+    }
+
+    return '<div style="position:sticky;top:0;z-index:30;background:#232B3D;box-shadow:0 2px 14px rgba(20,28,46,.16);">' +
+      '<div style="max-width:1180px;margin:0 auto;padding:clamp(13px,2vw,16px) clamp(16px,4vw,32px);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
+      inner +
+      '</div></div>';
+  }
 
   /* ----------------------------- 資料層 ----------------------------- */
   function gvizUrl(region, tq) {
@@ -62,9 +137,12 @@
   function centerState(inner) { return '<div class="center-state">' + inner + '</div>'; }
 
   function render() {
-    if (state.status === 'loading') { app.innerHTML = wrap(centerState('<div class="spinner"></div><div class="msg">載入中…</div>')); return; }
+    if (state.status === 'loading') {
+      app.innerHTML = renderHeader() + wrap(centerState('<div class="spinner"></div><div class="msg">載入中…</div>'));
+      return;
+    }
     if (state.status === 'error') {
-      app.innerHTML = wrap(centerState(
+      app.innerHTML = renderHeader() + wrap(centerState(
         '<div class="msg">讀取失敗：' + Core.escHtml(state.error || '') + '<br>請確認該 Google Sheet 已設為「知道連結的人皆可檢視」。</div>' +
         '<button data-action="refresh">重試</button>'));
       return;
@@ -85,7 +163,7 @@
         history: state.history[top.id]
       });
     }
-    app.innerHTML = wrap(html);
+    app.innerHTML = renderHeader() + wrap(html);
   }
 
   /* ----------------------------- 互動 ----------------------------- */
