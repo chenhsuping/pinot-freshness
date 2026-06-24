@@ -44,18 +44,18 @@ maxUpdate, delayMin, delayHuman, status }`，其中 `group`=`group_name`、`sla`
 - **WHEN** 使用者切到「依資料表」模式
 - **THEN** 系統列出該 BU 內 distinct `table`，順序為跨該 BU 群組的首見順序
 
-### Requirement: 取得單表近 24 小時延遲歷史
+### Requirement: 取得單表近七天延遲歷史
 系統 SHALL 在開啟詳情頁時，以 gviz 查詢
-`select F, I where A='{bu}' and B='{group}' and C='{table}' order by F desc limit 200`
-取得該表歷史，反轉為時間順序並過濾近 24 小時的資料點供趨勢圖使用。
+`select F, I where A='{bu}' and B='{group}' and C='{table}' order by F desc limit 800`
+取得該表歷史，反轉為時間順序並過濾近七天（`trendDays`）的資料點，供詳情頁的趨勢與彙總使用。
 
-#### Scenario: 取得真實歷史資料點
+#### Scenario: 取得真實七天歷史資料點
 - **WHEN** 使用者開啟某表詳情頁
-- **THEN** 系統取得該 `bu/group/table` 近 24 小時的 (`Check_Time`, 延遲分鐘) 資料點，依時間順序排列
+- **THEN** 系統取得該 `bu/group/table` 近七天的 (`Check_Time`, 延遲分鐘) 資料點，依時間順序排列
 
-#### Scenario: 歷史點不足時退回現有點
-- **WHEN** 該表近 24 小時內可用資料點少於 2 個
-- **THEN** 系統改用現有的全部歷史點繪製，不致報錯
+#### Scenario: 視窗內無資料時退回現有點
+- **WHEN** 該表近七天視窗內無資料點
+- **THEN** 系統改用現有的全部歷史點，不致報錯（無任何點時回空陣列）
 
 ### Requirement: 資料讀取錯誤需可被偵測
 系統 SHALL 在 gviz 讀取或解析失敗時回傳可辨識的錯誤狀態，供 UI 呈現重試與提示，而非靜默失敗。

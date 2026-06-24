@@ -20,6 +20,6 @@ window.CONFIG = {
   // 自動刷新毫秒數；0 = 關閉（預設）。例如 5 分鐘 = 300000
   refreshMs: 0,
 
-  // 詳情頁趨勢圖回看時數
-  trendHours: 24,
+  // 詳情頁回看天數（近七天累積 Downtime / 趨勢）
+  trendDays: 7,
 };

@@ -11,7 +11,7 @@
 |---|---|
 | `index.html` | 應用外殼：密碼閘 + 容器 + 載入字型/腳本 |
 | `styles.css` | 重置、頁面底色、密碼閘、載入/狀態樣式 |
-| `app.js` | gviz 讀取、正規化、導覽狀態、四畫面渲染、真實 24h 趨勢、密碼閘 |
+| `app.js` | gviz 讀取、正規化、導覽狀態、四畫面渲染、近七天 Downtime（真實歷史）、密碼閘 |
 | `config.js` | **要改的設定都在這**：sheet ID/tab、密碼雜湊、自動刷新 |
 | `MobilePreview.html` | iPhone 390×844 手機外框預覽（iframe 套 `index.html`） |
 | `CNAME` | 自有網域 `hsuping.org` |

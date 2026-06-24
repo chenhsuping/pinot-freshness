@@ -102,19 +102,17 @@
 
   function loadHistory(row) {
     var tq = "select F, I where A = '" + gEsc(row.bu) + "' and B = '" + gEsc(row.group) +
-      "' and C = '" + gEsc(row.table) + "' order by F desc limit 200";
+      "' and C = '" + gEsc(row.table) + "' order by F desc limit 800";
     return gvizQuery(row.region, tq).then(function (table) {
       var pts = (table.rows || []).map(function (r) {
         return { t: parseTime(r.c && r.c[0]), delay: Number(cellV(r, 1)) };
       }).filter(function (p) { return p.t && !isNaN(p.delay); });
       pts.reverse(); // 時間序
-      if (pts.length >= 2) {
-        var last = pts[pts.length - 1].t.getTime();
-        var cutoff = last - CONFIG.trendHours * 3600 * 1000;
-        var within = pts.filter(function (p) { return p.t.getTime() >= cutoff; });
-        if (within.length >= 2) return within;
-      }
-      return pts;
+      if (!pts.length) return [];
+      var last = pts[pts.length - 1].t.getTime();
+      var cutoff = last - CONFIG.trendDays * 86400 * 1000; // 近七天視窗
+      var within = pts.filter(function (p) { return p.t.getTime() >= cutoff; });
+      return within.length ? within : pts;
     });
   }
 
@@ -146,13 +144,35 @@
       delayColor: br ? '#C53D34' : '#1F8A5B',
       pillBg: br ? '#FCEAE7' : '#E6F4EC',
       pillText: br ? '#C53D34' : '#1F8A5B',
-      pillLabel: br ? '逾期' : '正常',
+      pillLabel: br ? '逾時' : '正常',
       srcBg: row.source === 'Realtime' ? '#E7F0FE' : '#EEF1F5',
       srcText: row.source === 'Realtime' ? '#2F6FE0' : '#5E6675',
     };
   }
 
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  // SLA 文字人性化：整除 60 → 小時，否則 → 分
+  function slaHuman(sla) { return sla % 60 === 0 ? (sla / 60) + '小時' : sla + '分'; }
+
+  // 分鐘 → 「N天N時N分」
+  function human(m) {
+    m = Math.max(0, Math.round(m));
+    var d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+    return (d ? d + '天' : '') + ((h || d) ? h + '時' : '') + mm + '分';
+  }
+
+  // 近七天 X 軸 4 個日期刻度（依 checkTime 往前推 144/96/48/0 小時），格式 MM/DD HH時
+  function weekTicks(checkTime) {
+    var base = parseTime({ v: checkTime });
+    if (!base) return ['', '', '', ''];
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    var lab = function (h) {
+      var x = new Date(base.getTime() - h * 3600000);
+      return p(x.getMonth() + 1) + '/' + p(x.getDate()) + ' ' + p(x.getHours()) + '時';
+    };
+    return [lab(144), lab(96), lab(48), lab(0)];
+  }
 
   /* ----------------------------- 渲染 ----------------------------- */
   function render() {
@@ -222,7 +242,7 @@
         return '<button data-action="openGroup" data-group="' + esc(g) + '" style="display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:#FFFFFF;border:1px solid #EAEDF2;border-radius:16px;padding:15px;cursor:pointer;">' +
           '<div style="width:42px;height:42px;border-radius:12px;background:' + (bad ? '#FCEAE7' : '#E6F4EC') + ';display:flex;align-items:center;justify-content:center;font:600 13px \'JetBrains Mono\',monospace;color:' + (bad ? '#C53D34' : '#1F8A5B') + ';flex:0 0 auto;">' + health + '%</div>' +
           '<div style="flex:1;min-width:0;"><div style="font:600 15px \'Space Grotesk\',sans-serif;">' + esc(g) + '</div>' +
-          '<div style="font:500 11.5px \'JetBrains Mono\',monospace;color:' + (bad ? '#C53D34' : '#1F8A5B') + ';margin-top:4px;">' + (bad ? (br + ' 張逾期') : '全部正常') + ' · 共 ' + t.length + ' 張</div></div>' +
+          '<div style="font:500 11.5px \'JetBrains Mono\',monospace;color:' + (bad ? '#C53D34' : '#1F8A5B') + ';margin-top:4px;">' + (bad ? (br + ' 張逾時') : '全部正常') + ' · 共 ' + t.length + ' 張</div></div>' +
           '<div style="font-size:19px;color:#C2C8CF;flex:0 0 auto;">›</div></button>';
       }).join('');
       grid = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(264px,1fr));gap:11px;">' + cards + '</div>';
@@ -234,7 +254,7 @@
           '<div style="width:8px;height:8px;border-radius:50%;background:' + (bad ? '#E0584A' : '#34A06B') + ';flex:0 0 auto;"></div>' +
           '<div style="flex:1;min-width:0;font:600 13px \'JetBrains Mono\',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(tb) + '</div>' +
           '<span style="font:500 10px \'JetBrains Mono\',monospace;color:#9AA3AF;flex:0 0 auto;">' + arr.length + ' 群組</span>' +
-          '<span style="font:600 10px \'Space Grotesk\',sans-serif;padding:3px 9px;border-radius:7px;background:' + (bad ? '#FCEAE7' : '#E6F4EC') + ';color:' + (bad ? '#C53D34' : '#1F8A5B') + ';flex:0 0 auto;">' + (bad ? (br + ' 逾期') : '正常') + '</span>' +
+          '<span style="font:600 10px \'Space Grotesk\',sans-serif;padding:3px 9px;border-radius:7px;background:' + (bad ? '#FCEAE7' : '#E6F4EC') + ';color:' + (bad ? '#C53D34' : '#1F8A5B') + ';flex:0 0 auto;">' + (bad ? (br + ' 逾時') : '正常') + '</span>' +
           '<div style="font-size:18px;color:#C2C8CF;flex:0 0 auto;">›</div></button>';
       }).join('');
       grid = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:9px;">' + tcards + '</div>';
@@ -253,7 +273,7 @@
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;">' +
         '<div style="font:600 13px \'JetBrains Mono\',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(row.table) + '</div>' +
         '<div style="display:flex;align-items:center;gap:7px;"><span style="font:600 10px \'Space Grotesk\',sans-serif;padding:2px 8px;border-radius:6px;background:' + m.srcBg + ';color:' + m.srcText + ';">' + esc(row.source) + '</span>' +
-        '<span style="font:500 10px \'JetBrains Mono\',monospace;color:#9AA3AF;">SLA ' + row.sla + '分</span></div>' +
+        '<span style="font:500 10px \'JetBrains Mono\',monospace;color:#9AA3AF;">SLA ' + slaHuman(row.sla) + '</span></div>' +
       '</div>' +
       '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto;">' +
         '<div style="font:600 13px \'JetBrains Mono\',monospace;color:' + m.delayColor + ';">' + esc(row.delayHuman) + '</div>' +
@@ -264,7 +284,7 @@
   function renderGroupTables(top) {
     var all = state.data.filter(function (r) { return r.group === top.group; });
     var br = all.filter(function (r) { return r.status === 'Breached'; }).length;
-    var meta = br > 0 ? (all.length + ' 張 · ' + br + ' 逾期') : (all.length + ' 張 · 全部正常');
+    var meta = br > 0 ? (all.length + ' 張 · ' + br + ' 逾時') : (all.length + ' 張 · 全部正常');
     var chips = [['all', '全部'], ['breach', '只看異常'], ['rt', 'Realtime'], ['off', 'Offline']].map(function (o) {
       var on = state.gFilter === o[0];
       return '<button data-action="gfilter" data-val="' + o[0] + '" style="flex:0 0 auto;border:none;cursor:pointer;padding:8px 15px;border-radius:999px;font:600 12px \'Space Grotesk\',sans-serif;background:' + (on ? '#232B3D' : '#EEF1F5') + ';color:' + (on ? '#FFFFFF' : '#555E6B') + ';">' + o[1] + '</button>';
@@ -296,7 +316,7 @@
         '<div style="width:9px;height:9px;border-radius:50%;background:' + m.dotColor + ';flex:0 0 auto;"></div>' +
         '<div style="flex:1;min-width:0;"><div style="font:600 15px \'Space Grotesk\',sans-serif;">' + esc(row.group) + '</div>' +
         '<div style="display:flex;align-items:center;gap:7px;margin-top:6px;"><span style="font:600 10px \'Space Grotesk\',sans-serif;padding:2px 8px;border-radius:6px;background:' + m.srcBg + ';color:' + m.srcText + ';">' + esc(row.source) + '</span>' +
-        '<span style="font:500 10px \'JetBrains Mono\',monospace;color:#9AA3AF;">SLA ' + row.sla + '分</span></div></div>' +
+        '<span style="font:500 10px \'JetBrains Mono\',monospace;color:#9AA3AF;">SLA ' + slaHuman(row.sla) + '</span></div></div>' +
         '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto;"><div style="font:600 13px \'JetBrains Mono\',monospace;color:' + m.delayColor + ';">' + esc(row.delayHuman) + '</div>' +
         '<span style="font:600 10px \'Space Grotesk\',sans-serif;padding:2px 9px;border-radius:6px;background:' + m.pillBg + ';color:' + m.pillText + ';">' + m.pillLabel + '</span></div></button>';
     }).join('');
@@ -325,9 +345,9 @@
     if (!row) return centerState('<div class="msg">找不到資料</div>');
     var br = row.status === 'Breached';
     var accentBg = br ? '#FCEAE7' : '#E6F4EC', accentText = br ? '#C53D34' : '#1F8A5B', accentLine = br ? '#E0584A' : '#34A06B';
-    var srcText = row.source === 'Realtime' ? 'Realtime（即時 15分）' : 'Offline（離線 240分）';
 
     var hist = state.history[top.id];
+    var downtimeHuman = '—', slaWeekText = '—', downtimeMinText = '—';
     var trendInner;
     if (!hist || hist.status === 'loading') {
       trendInner = '<div style="height:96px;display:flex;align-items:center;justify-content:center;"><div class="spinner"></div></div>';
@@ -336,13 +356,21 @@
     } else if (!hist.points || !hist.points.length) {
       trendInner = '<div style="height:96px;display:flex;align-items:center;justify-content:center;font:500 12px \'Space Grotesk\',sans-serif;color:#9AA3AF;">尚無歷史資料點</div>';
     } else {
-      var tr = buildTrend(hist.points, row.sla);
+      var pts = hist.points;
+      var downtime = pts.reduce(function (a, p) { return a + p.delay; }, 0); // 近七天 Σ Delay_Time
+      var slaWeek = row.sla * pts.length;                                    // 近七天 Σ SLA
+      downtimeHuman = human(downtime);
+      downtimeMinText = downtime + ' 分';
+      slaWeekText = slaWeek + ' 分';
+      var tr = buildTrend(pts, row.sla);
+      var ticks = weekTicks(state.checkTime);
       trendInner = '<svg viewBox="0 0 300 84" preserveAspectRatio="none" style="width:100%;height:96px;display:block;overflow:visible;">' +
         '<path d="' + tr.area + '" fill="' + accentBg + '" opacity="0.7"></path>' +
         '<line x1="0" y1="' + tr.threshY + '" x2="300" y2="' + tr.threshY + '" stroke="#99A0A8" stroke-width="1.4" stroke-dasharray="4 3"></line>' +
         '<path d="' + tr.spark + '" fill="none" stroke="' + accentLine + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>' +
         '<circle cx="' + tr.lx + '" cy="' + tr.ly + '" r="3.5" fill="' + accentLine + '"></circle></svg>' +
-        '<div style="display:flex;justify-content:space-between;margin-top:8px;font:500 9.5px \'JetBrains Mono\',monospace;color:#B0B6BD;"><span>−24h</span><span>−18h</span><span>−12h</span><span>−6h</span><span>現在</span></div>';
+        '<div style="display:flex;justify-content:space-between;margin-top:8px;font:500 9.5px \'JetBrains Mono\',monospace;color:#B0B6BD;">' +
+          ticks.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</div>';
     }
 
     function infoRow(label, val, color, last) {
@@ -358,20 +386,19 @@
         '<div style="display:flex;gap:6px;">' + toolbarBtns() + '</div></div>' +
       '<div style="display:flex;align-items:center;justify-content:space-between;background:' + accentBg + ';border-radius:12px;padding:14px 16px;margin-top:16px;">' +
         '<div style="display:flex;align-items:center;gap:9px;"><div style="width:9px;height:9px;border-radius:50%;background:' + accentLine + ';"></div>' +
-        '<div style="font:600 14px \'Space Grotesk\',sans-serif;color:' + accentText + ';">' + (br ? 'SLA 逾期' : 'SLA 達標') + '</div></div>' +
-        '<div style="font:600 16px \'JetBrains Mono\',monospace;color:' + accentText + ';">' + esc(row.delayHuman) + '</div></div>' +
+        '<div style="font:600 14px \'Space Grotesk\',sans-serif;color:' + accentText + ';">近七天累積 Downtime</div></div>' +
+        '<div style="font:600 16px \'JetBrains Mono\',monospace;color:' + accentText + ';">' + esc(downtimeHuman) + '</div></div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px;">' +
         '<div style="background:#FFFFFF;border:1px solid #ECEEF1;border-radius:14px;padding:16px;">' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div style="font:600 13px \'Space Grotesk\',sans-serif;color:#3A424C;">近 24 小時延遲趨勢</div>' +
-          '<div style="display:flex;align-items:center;gap:5px;font:500 10px \'JetBrains Mono\',monospace;color:#9AA1AA;"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed #99A0A8;"></span>SLA ' + row.sla + '分</div></div>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div style="font:600 13px \'Space Grotesk\',sans-serif;color:#3A424C;">近七天延遲趨勢</div>' +
+          '<div style="display:flex;align-items:center;gap:5px;font:500 10px \'JetBrains Mono\',monospace;color:#9AA1AA;"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed #99A0A8;"></span>近七天 SLA 總時數 ' + esc(slaWeekText) + '</div></div>' +
           trendInner +
         '</div>' +
         '<div style="background:#FFFFFF;border:1px solid #ECEEF1;border-radius:14px;overflow:hidden;align-self:start;">' +
-          infoRow('最後更新時間', row.maxUpdate) +
           infoRow('檢查時間', state.checkTime) +
-          infoRow('資料來源', srcText) +
-          infoRow('SLA 門檻', row.sla + ' 分') +
-          infoRow('實際延遲', row.delayMin + ' 分', accentText, true) +
+          infoRow('資料更新時間', row.maxUpdate) +
+          infoRow('近七天 SLA 總時數', slaWeekText) +
+          infoRow('近七天累積 Downtime', downtimeMinText, accentText, true) +
         '</div>' +
       '</div></div>';
   }

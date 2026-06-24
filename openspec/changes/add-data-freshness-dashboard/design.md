@@ -15,7 +15,7 @@ J=Delay_Status, K=SLA_Status, L=Update_Count。sheet 持續累積歷史（每批
 **Goals:**
 - 手機/電腦皆可用、快速查詢的 HK 資料新鮮度儀表板。
 - 零編譯純靜態、可直接 push 到 GitHub Pages、接 `hsuping.org`。
-- 像素級重現 Slate Ops 四畫面；詳情頁 24h 趨勢用真實歷史。
+- 像素級重現 Slate Ops 四畫面；詳情頁「近七天累積 Downtime」趨勢與彙總用真實歷史。
 - 含真實憑證的 R 腳本不進入公開 repo。
 
 **Non-Goals:**
@@ -40,10 +40,12 @@ J=Delay_Status, K=SLA_Status, L=Update_Count。sheet 持續累積歷史（每批
   push 到 Pages 即時可用，最易維護。
 - **取捨**：React 結構較佳但需 build step；對此規模不划算。
 
-### D3：詳情頁 24h 趨勢用真實歷史，而非原型的合成隨機值
-- **為何**：sheet 本就累積歷史，每個 `Check_Time` 批次即一個資料點；真實趨勢更有價值。
-- **作法**：開詳情頁時 `select F, I where A='{bu}' and B='{group}' and C='{table}' order by F desc limit 200`，
-  反轉為時間序、過濾近 24h；不足 2 點則用現有全部點。
+### D3：詳情頁「近七天累積 Downtime」用真實歷史，而非原型的合成值
+- **為何**：sheet 本就累積歷史，每個 `Check_Time` 批次即一個資料點；用真實七天彙總比合成更有價值。
+- **作法**：開詳情頁時 `select F, I where A='{bu}' and B='{group}' and C='{table}' order by F desc limit 800`，
+  反轉為時間序、過濾近七天（`trendDays`）。由窗內資料點計算：累積 Downtime = Σ Delay_Time、
+  SLA 總時數 = SLA × 點數；趨勢線用窗內所有點；X 軸 4 個日期刻度（`MM/DD HH時`）由 `Check_Time` 推算。
+- **狀態條**：標籤固定「近七天累積 Downtime」，顏色仍依當前列 Breached/Met（紅/綠）。
 
 ### D4：BU→群組清單從資料動態推導，而非寫死
 - **為何**：以利日後 TW 增站（如 `bj`、`bt`）不需改碼。distinct group 取首見順序。

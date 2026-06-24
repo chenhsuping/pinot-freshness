@@ -12,7 +12,7 @@
 - [ ] 2.2 寫列解析：時間/文字取 `f`、數值（`sla`/`delayMin`）取 `v`，輸出共同模型 `{region,bu,group,table,source,sla,checkTime,maxUpdate,delayMin,delayHuman,status}`
 - [ ] 2.3 過濾出最大 `Check_Time` 批次為目前快照
 - [ ] 2.4 動態推導：每 BU 的群組清單與不重複資料表清單（皆首見順序）
-- [ ] 2.5 詳情歷史抓取：`select F, I where A='{bu}' and B='{group}' and C='{table}' order by F desc limit 200`，反轉時間序、過濾近 24h，不足 2 點則用現有全部點
+- [ ] 2.5 詳情歷史抓取：`select F, I where A='{bu}' and B='{group}' and C='{table}' order by F desc limit 800`，反轉時間序、過濾近七天（`trendDays`）；窗內無點則退回現有全部、皆無則回空陣列
 - [ ] 2.6 錯誤處理：gviz/解析失敗回報可辨識錯誤狀態（不靜默吞）
 
 ## 3. 密碼閘（access-gate）
@@ -32,12 +32,12 @@
 ## 5. 畫面實作（dashboard-ui，照 Slate Ops 還原）
 
 - [ ] 5.1 首頁：標題 + 副標「更新 {checkTime} · N 群組 / M 張表」+ 模式切換 + BU 膠囊
-- [ ] 5.2 首頁依群組：群組卡（健康度色塊 `round((total-breached)/total*100)` + 名稱 + 逾期/總數 meta）
+- [ ] 5.2 首頁依群組：群組卡（健康度色塊 `round((total-breached)/total*100)` + 名稱 + 逾時/總數 meta）
 - [ ] 5.3 首頁依資料表：資料表列（狀態點 + 表名 + 群組數 + 狀態 pill）
 - [ ] 5.4 群組→資料表：返回 + 標題 + 篩選膠囊（全部/只看異常/Realtime/Offline）+ 表卡格
 - [ ] 5.5 資料表→各群組：標題 + 各群組卡（只列含此表的群組）
-- [ ] 5.6 詳情頁：狀態條 + 資訊卡（最後更新/檢查時間/資料來源/SLA 門檻/實際延遲）
-- [ ] 5.7 詳情頁 24h 趨勢 SVG：真實歷史折線 + 面積 + y=SLA 虛線門檻 + 端點 + x 軸標籤
+- [ ] 5.6 詳情頁：狀態條「近七天累積 Downtime」+ 資訊卡 4 列（檢查時間/資料更新時間/近七天 SLA 總時數/近七天累積 Downtime）
+- [ ] 5.7 詳情頁近七天趨勢 SVG：真實歷史折線 + 面積 + y=SLA 虛線門檻 + 端點 + X 軸 4 個 `MM/DD HH時` 日期刻度
 
 ## 6. 視覺還原與響應式（dashboard-ui token）
 
