@@ -55,4 +55,8 @@ body {
 
 #app { min-height: 100vh; }
 
+@keyframes scrFade { from { transform: translateY(9px); } to { transform: none; } }
+
+.hist-row:hover { background: #F7F9FB; }
+
 [hidden] { display: none !important; }

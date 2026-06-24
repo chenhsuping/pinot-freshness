@@ -112,10 +112,18 @@
     var accentText = br ? '#C53D34' : '#1F8A5B';
     var accentLine = br ? '#E0584A' : '#34A06B';
 
-    var tabBar = '<div style="display:flex;gap:0;background:#E5E9F0;border-radius:12px;padding:4px;margin-bottom:18px;width:-moz-fit-content;width:fit-content;">' +
+    // 將 "YYYY-MM-DD HH:mm:ss" 格式化為 "MM/DD HH:mm"（歷史表格顯示用）
+    function fmtShort(s) {
+      if (!s) return '';
+      var m = s.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+      return m ? m[2] + '/' + m[3] + ' ' + m[4] + ':' + m[5] : s;
+    }
+
+    // 頁籤切換列：全寬、等分兩欄，符合設計規格
+    var tabBar = '<div style="display:flex;gap:4px;background:#EEF1F5;border-radius:11px;padding:4px;margin-top:14px;margin-bottom:18px;">' +
       [['overview', '概覽'], ['history', '歷史']].map(function (pair) {
         var on = tab === pair[0];
-        return '<button data-action="tab" data-val="' + pair[0] + '" style="border:none;cursor:pointer;padding:8px 20px;border-radius:9px;font:600 13px \'Space Grotesk\',sans-serif;background:' +
+        return '<button data-action="tab" data-val="' + pair[0] + '" style="flex:1;border:none;cursor:pointer;padding:9px 6px;border-radius:8px;font:600 12.5px \'Space Grotesk\',sans-serif;background:' +
           (on ? '#FFFFFF' : 'transparent') + ';color:' + (on ? '#1C2433' : '#6B7585') + ';box-shadow:' + (on ? '0 1px 3px rgba(20,30,50,.14)' : 'none') + ';">' + pair[1] + '</button>';
       }).join('') + '</div>';
 
@@ -132,12 +140,16 @@
       body = '<div style="height:120px;display:flex;align-items:center;justify-content:center;font:500 12px \'Space Grotesk\',sans-serif;color:#9AA3AF;">歷史讀取失敗</div>';
     } else if (tab === 'overview') {
       var pts = hist.records || [];
-      var downtimeHuman = '—', slaWeekText = '—', downtimeMinText = '—', trendInner;
+      var downtimeHuman = '—', slaWeekText = '—', downtimeMinText = '—', trendInner, statTiles = '';
       if (!pts.length) {
         trendInner = '<div style="height:96px;display:flex;align-items:center;justify-content:center;font:500 12px \'Space Grotesk\',sans-serif;color:#9AA3AF;">尚無歷史資料點</div>';
       } else {
-        var downtime = pts.reduce(function (a, q) { return a + q.delay; }, 0);
+        var delays = pts.map(function (q) { return q.delay; });
+        var downtime = delays.reduce(function (a, b) { return a + b; }, 0);
         var slaWeek = row.sla * pts.length;
+        var peak = Math.max.apply(null, delays);
+        var low = Math.min.apply(null, delays);
+        var avg = Math.round(downtime / delays.length);
         downtimeHuman = C.human(downtime);
         downtimeMinText = downtime + ' 分';
         slaWeekText = slaWeek + ' 分';
@@ -150,8 +162,21 @@
           '<circle cx="' + tr.lx + '" cy="' + tr.ly + '" r="3.5" fill="' + accentLine + '"></circle></svg>' +
           '<div style="display:flex;justify-content:space-between;margin-top:8px;font:500 9.5px \'JetBrains Mono\',monospace;color:#B0B6BD;">' +
             ticks.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</div>';
+        // 峰值 / 平均 / 谷值 統計磚
+        statTiles = '<div style="display:flex;gap:8px;margin-top:13px;">' +
+          '<div style="flex:1;background:#F7F9FB;border-radius:10px;padding:8px 10px;">' +
+            '<div style="font:500 10px \'Space Grotesk\',sans-serif;color:#8A919A;">峰值</div>' +
+            '<div style="font:600 13px \'JetBrains Mono\',monospace;color:#C53D34;margin-top:2px;">' + esc(C.human(peak)) + '</div></div>' +
+          '<div style="flex:1;background:#F7F9FB;border-radius:10px;padding:8px 10px;">' +
+            '<div style="font:500 10px \'Space Grotesk\',sans-serif;color:#8A919A;">平均</div>' +
+            '<div style="font:600 13px \'JetBrains Mono\',monospace;color:#3A424C;margin-top:2px;">' + esc(C.human(avg)) + '</div></div>' +
+          '<div style="flex:1;background:#F7F9FB;border-radius:10px;padding:8px 10px;">' +
+            '<div style="font:500 10px \'Space Grotesk\',sans-serif;color:#8A919A;">谷值</div>' +
+            '<div style="font:600 13px \'JetBrains Mono\',monospace;color:#1F8A5B;margin-top:2px;">' + esc(C.human(low)) + '</div></div>' +
+          '</div>';
       }
-      body = '<div style="display:flex;align-items:center;justify-content:space-between;background:' + accentBg + ';border-radius:12px;padding:14px 16px;">' +
+      body = '<div style="animation:scrFade .26s ease both;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;background:' + accentBg + ';border-radius:12px;padding:14px 16px;">' +
           '<div style="display:flex;align-items:center;gap:9px;"><div style="width:9px;height:9px;border-radius:50%;background:' + accentLine + ';"></div>' +
           '<div style="font:600 14px \'Space Grotesk\',sans-serif;color:' + accentText + ';">近七天累積 Downtime</div></div>' +
           '<div style="font:600 16px \'JetBrains Mono\',monospace;color:' + accentText + ';">' + esc(downtimeHuman) + '</div></div>' +
@@ -159,7 +184,7 @@
           '<div style="background:#FFFFFF;border:1px solid #ECEEF1;border-radius:14px;padding:16px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div style="font:600 13px \'Space Grotesk\',sans-serif;color:#3A424C;">近七天延遲趨勢</div>' +
             '<div style="display:flex;align-items:center;gap:5px;font:500 10px \'JetBrains Mono\',monospace;color:#9AA1AA;"><span style="display:inline-block;width:14px;height:0;border-top:2px dashed #99A0A8;"></span>近七天 SLA 總時數 ' + esc(slaWeekText) + '</div></div>' +
-            trendInner +
+            trendInner + statTiles +
           '</div>' +
           '<div style="background:#FFFFFF;border:1px solid #ECEEF1;border-radius:14px;overflow:hidden;align-self:start;">' +
             infoRow('檢查時間', p.checkTime) +
@@ -167,42 +192,48 @@
             infoRow('近七天 SLA 總時數', slaWeekText) +
             infoRow('近七天累積 Downtime', downtimeMinText, accentText, true) +
           '</div>' +
-        '</div>';
+        '</div></div>';
     } else {
       var records = C.sliceByRange(hist.records || [], p.checkTime, range);
       var summary = C.summarizeRange(records);
       var rangeLabel = C.fmtRangeLabel(range);
       var rangePills = [['24h', '近24小時'], ['3d', '近3天'], ['7d', '近7天']].map(function (pair) {
         var on = range === pair[0];
-        return '<button data-action="range" data-val="' + pair[0] + '" style="flex:0 0 auto;border:none;cursor:pointer;padding:7px 14px;border-radius:999px;font:600 12px \'Space Grotesk\',sans-serif;background:' +
+        return '<button data-action="range" data-val="' + pair[0] + '" style="flex:0 0 auto;border:none;cursor:pointer;padding:8px 14px;border-radius:999px;font:600 12px \'Space Grotesk\',sans-serif;background:' +
           (on ? '#232B3D' : '#EEF1F5') + ';color:' + (on ? '#FFFFFF' : '#555E6B') + ';">' + pair[1] + '</button>';
       }).join('');
-      var summaryLine = '<div style="font:500 12px \'Space Grotesk\',sans-serif;color:#6B7585;padding:10px 0;">' +
+      // 摘要列：JetBrains Mono 符合設計規格
+      var summaryLine = '<div style="font:500 11px \'JetBrains Mono\',monospace;color:#69727F;margin:12px 2px 9px;">' +
         esc(rangeLabel) + ' · 共 ' + summary.count + ' 筆 · ' + summary.breachedCount + ' 筆逾時</div>';
       var tableHtml;
       if (!records.length) {
         tableHtml = '<div style="padding:32px;text-align:center;font:500 13px \'Space Grotesk\',sans-serif;color:#9AA3AF;">此範圍尚無檢查記錄</div>';
       } else {
-        var thead = '<thead><tr>' +
-          ['檢查時間', '資料更新時間', '延遲時間', '逾時狀態'].map(function (h) {
-            return '<th style="padding:9px 12px;font:600 11px \'Space Grotesk\',sans-serif;color:#7A828C;text-align:left;white-space:nowrap;border-bottom:1px solid #E5E9F0;background:#F6F8FA;">' + h + '</th>';
-          }).join('') + '</tr></thead>';
-        var tbodyRows = records.map(function (rec) {
+        // 使用 flex layout 符合設計，支援手機橫向捲動
+        var theadRow = '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#F7F9FB;border-bottom:1px solid #ECEFF2;">' +
+          '<span style="flex:0 0 84px;font:600 11px \'Space Grotesk\',sans-serif;color:#8A919A;">檢查時間</span>' +
+          '<span style="flex:0 0 84px;font:600 11px \'Space Grotesk\',sans-serif;color:#8A919A;">資料更新時間</span>' +
+          '<span style="flex:1;text-align:right;font:600 11px \'Space Grotesk\',sans-serif;color:#8A919A;">延遲時間</span>' +
+          '<span style="flex:0 0 52px;text-align:right;font:600 11px \'Space Grotesk\',sans-serif;color:#8A919A;">逾時狀態</span>' +
+          '</div>';
+        var dataRows = records.map(function (rec) {
           var delayColor = rec.breached ? '#C53D34' : '#1F8A5B';
           var pillBg = rec.breached ? '#FCEAE7' : '#E6F4EC';
           var pillText = rec.breached ? '#C53D34' : '#1F8A5B';
           var pillLabel = rec.breached ? '逾時' : '正常';
-          return '<tr style="border-bottom:1px solid #F2F4F6;">' +
-            '<td style="padding:9px 12px;font:500 12px \'JetBrains Mono\',monospace;color:#3A424C;white-space:nowrap;">' + esc(rec.checkTime) + '</td>' +
-            '<td style="padding:9px 12px;font:500 12px \'JetBrains Mono\',monospace;color:#3A424C;white-space:nowrap;">' + esc(rec.maxUpdate) + '</td>' +
-            '<td style="padding:9px 12px;font:600 12px \'JetBrains Mono\',monospace;color:' + delayColor + ';white-space:nowrap;">' + esc(C.human(rec.delayMin)) + '</td>' +
-            '<td style="padding:9px 12px;"><span style="font:600 10px \'Space Grotesk\',sans-serif;padding:3px 9px;border-radius:6px;background:' + pillBg + ';color:' + pillText + ';">' + pillLabel + '</span></td>' +
-            '</tr>';
+          return '<div class="hist-row" style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #F4F6F8;transition:background .14s ease;">' +
+            '<span style="flex:0 0 84px;font:500 12px \'JetBrains Mono\',monospace;color:#3A424C;">' + esc(fmtShort(rec.checkTime)) + '</span>' +
+            '<span style="flex:0 0 84px;font:500 12px \'JetBrains Mono\',monospace;color:#3A424C;">' + esc(fmtShort(rec.maxUpdate)) + '</span>' +
+            '<span style="flex:1;text-align:right;font:600 12px \'JetBrains Mono\',monospace;color:' + delayColor + ';">' + esc(C.human(rec.delayMin)) + '</span>' +
+            '<span style="flex:0 0 52px;display:flex;justify-content:flex-end;"><span style="font:600 10px \'Space Grotesk\',sans-serif;padding:2px 8px;border-radius:6px;background:' + pillBg + ';color:' + pillText + ';">' + pillLabel + '</span></span>' +
+            '</div>';
         }).join('');
-        tableHtml = '<div style="overflow-x:auto;max-height:480px;overflow-y:auto;border-radius:12px;border:1px solid #ECEEF1;">' +
-          '<table style="width:100%;border-collapse:collapse;background:#FFFFFF;">' + thead + '<tbody>' + tbodyRows + '</tbody></table></div>';
+        tableHtml = '<div style="overflow-x:auto;border:1px solid #ECEEF1;border-radius:14px;">' +
+          '<div style="min-width:404px;background:#FFFFFF;">' + theadRow + dataRows + '</div></div>';
       }
-      body = '<div style="display:flex;gap:7px;flex-wrap:wrap;">' + rangePills + '</div>' + summaryLine + tableHtml;
+      body = '<div style="animation:scrFade .26s ease both;">' +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;">' + rangePills + '</div>' +
+        summaryLine + tableHtml + '</div>';
     }
 
     return '<div style="max-width:860px;">' + tabBar + body + '</div>';
