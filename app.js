@@ -195,6 +195,53 @@
     else if (a === 'logout') { logout(); }
   }
 
+  /* ---- Tier-2 hover patch: mutates only 3 DOM nodes, never calls render() ---- */
+  function showHover(rect) {
+    var line = document.getElementById('dfHoverLine');
+    var dot = document.getElementById('dfHoverDot');
+    var readTime = document.getElementById('dfReadTime');
+    var readVal = document.getElementById('dfReadVal');
+    if (!line || !dot || !readTime || !readVal) return;
+    var x = rect.getAttribute('data-x');
+    var y = rect.getAttribute('data-y');
+    line.setAttribute('x1', x); line.setAttribute('x2', x);
+    line.setAttribute('visibility', 'visible');
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+    dot.setAttribute('visibility', 'visible');
+    readTime.textContent = rect.getAttribute('data-time');
+    var dc = rect.getAttribute('data-delay-color');
+    var pb = rect.getAttribute('data-pill-bg');
+    var pt = rect.getAttribute('data-pill-text');
+    var pl = rect.getAttribute('data-pill-label');
+    readVal.innerHTML =
+      '<span style="font:600 12px \'JetBrains Mono\',monospace;color:' + dc + ';">' + Core.escHtml(rect.getAttribute('data-delay')) + '</span>' +
+      ' <span style="font:600 10px \'Space Grotesk\',sans-serif;padding:2px 8px;border-radius:6px;background:' + pb + ';color:' + pt + ';">' + Core.escHtml(pl) + '</span>';
+  }
+
+  function clearHover() {
+    var line = document.getElementById('dfHoverLine');
+    var dot = document.getElementById('dfHoverDot');
+    var readTime = document.getElementById('dfReadTime');
+    var readVal = document.getElementById('dfReadVal');
+    var readout = document.getElementById('dfReadout');
+    if (!line) return;
+    line.setAttribute('visibility', 'hidden');
+    dot.setAttribute('visibility', 'hidden');
+    if (!readout || !readTime || !readVal) return;
+    var defPillBg = readout.getAttribute('data-def-pill-bg');
+    var defPillTx = readout.getAttribute('data-def-pill-text');
+    readTime.textContent = readout.getAttribute('data-def-time');
+    readVal.innerHTML =
+      '<span style="font:600 12px \'JetBrains Mono\',monospace;color:' + defPillTx + ';">' + Core.escHtml(readout.getAttribute('data-def-delay')) + '</span>' +
+      ' <span style="font:600 10px \'Space Grotesk\',sans-serif;padding:2px 8px;border-radius:6px;background:' + defPillBg + ';color:' + defPillTx + ';">' + Core.escHtml(readout.getAttribute('data-def-pill-label')) + '</span>';
+  }
+
+  function onPointerOver(e) {
+    var rect = e.target.closest('[data-hover-idx]');
+    if (rect) { showHover(rect); return; }
+    if (!e.target.closest('#dfTrendSvg')) clearHover();
+  }
+
   function currentDetailId() {
     var top = state.stack[state.stack.length - 1];
     return top && top.type === 'detail' ? top.id : null;
@@ -240,6 +287,7 @@
     document.getElementById('gate').setAttribute('hidden', '');
     app.removeAttribute('hidden');
     app.addEventListener('click', onClick);
+    app.addEventListener('pointerover', onPointerOver);
     reload();
     startAutoRefresh();
   }

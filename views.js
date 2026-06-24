@@ -153,13 +153,56 @@
         downtimeHuman = C.human(downtime);
         downtimeMinText = downtime + ' 分';
         slaWeekText = slaWeek + ' 分';
-        var tr = C.buildTrend(pts, row.sla);
+        // Reverse to chronological (oldest→left) so chart direction matches axis labels
+        var chartPts = pts.slice().reverse();
+        var tr = C.buildTrend(chartPts, row.sla);
         var ticks = C.weekTicks(p.checkTime);
-        trendInner = '<svg viewBox="0 0 300 84" preserveAspectRatio="none" style="width:100%;height:96px;display:block;overflow:visible;">' +
-          '<path d="' + tr.area + '" fill="' + accentBg + '" opacity="0.7"></path>' +
-          '<line x1="0" y1="' + tr.threshY + '" x2="300" y2="' + tr.threshY + '" stroke="#99A0A8" stroke-width="1.4" stroke-dasharray="4 3"></line>' +
-          '<path d="' + tr.spark + '" fill="none" stroke="' + accentLine + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>' +
-          '<circle cx="' + tr.lx + '" cy="' + tr.ly + '" r="3.5" fill="' + accentLine + '"></circle></svg>' +
+
+        // Default readout: newest point (rightmost on chart)
+        var newest = chartPts[chartPts.length - 1];
+        var newestTime = newest ? fmtShort(newest.checkTime) : '';
+        var newestDelay = newest ? C.human(newest.delayMin) : '';
+        var newestBr = newest ? newest.breached : false;
+        var nPillBg = newestBr ? '#FCEAE7' : '#E6F4EC';
+        var nPillTx = newestBr ? '#C53D34' : '#1F8A5B';
+        var nPillLb = newestBr ? '逾時' : '正常';
+        var readoutHtml = '<div id="dfReadout" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;height:20px;" ' +
+          'data-def-time="最新 ' + esc(newestTime) + '" data-def-delay="' + esc(newestDelay) + '" ' +
+          'data-def-pill-bg="' + nPillBg + '" data-def-pill-text="' + nPillTx + '" data-def-pill-label="' + esc(nPillLb) + '">' +
+          '<span id="dfReadTime" style="font:500 11px \'JetBrains Mono\',monospace;color:#69727F;">最新 ' + esc(newestTime) + '</span>' +
+          '<span id="dfReadVal" style="display:flex;align-items:center;gap:5px;">' +
+            '<span style="font:600 12px \'JetBrains Mono\',monospace;color:' + nPillTx + ';">' + esc(newestDelay) + '</span>' +
+            ' <span style="font:600 10px \'Space Grotesk\',sans-serif;padding:2px 8px;border-radius:6px;background:' + nPillBg + ';color:' + nPillTx + ';">' + esc(nPillLb) + '</span>' +
+          '</span></div>';
+
+        // Hit-rects: one transparent full-height rect per point for pointer events
+        var stepW = tr.pts.length > 1 ? 300 / (tr.pts.length - 1) : 300;
+        var halfStep = stepW / 2;
+        var hitRects = tr.pts.map(function (pt, i) {
+          var cp = chartPts[i];
+          var px = parseFloat(pt.x);
+          var rx = Math.max(0, px - halfStep);
+          var rw = Math.min(300, px + halfStep) - rx;
+          return '<rect data-hover-idx="' + i + '" data-x="' + pt.x + '" data-y="' + pt.y + '"' +
+            ' data-time="' + esc(fmtShort(cp.checkTime)) + '" data-delay="' + esc(C.human(cp.delayMin)) + '"' +
+            ' data-delay-color="' + (cp.breached ? '#C53D34' : '#1F8A5B') + '"' +
+            ' data-pill-bg="' + (cp.breached ? '#FCEAE7' : '#E6F4EC') + '"' +
+            ' data-pill-text="' + (cp.breached ? '#C53D34' : '#1F8A5B') + '"' +
+            ' data-pill-label="' + (cp.breached ? '逾時' : '正常') + '"' +
+            ' x="' + rx.toFixed(1) + '" y="0" width="' + rw.toFixed(1) + '" height="84"' +
+            ' fill="transparent" style="cursor:crosshair;"></rect>';
+        }).join('');
+
+        trendInner = readoutHtml +
+          '<svg id="dfTrendSvg" viewBox="0 0 300 84" preserveAspectRatio="none" style="width:100%;height:96px;display:block;overflow:visible;">' +
+            '<path d="' + tr.area + '" fill="' + accentBg + '" opacity="0.7"></path>' +
+            '<line x1="0" y1="' + tr.threshY + '" x2="300" y2="' + tr.threshY + '" stroke="#99A0A8" stroke-width="1.4" stroke-dasharray="4 3"></line>' +
+            '<path d="' + tr.spark + '" fill="none" stroke="' + accentLine + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>' +
+            '<line id="dfHoverLine" x1="0" y1="0" x2="0" y2="84" stroke="#B0B6BD" stroke-width="1" stroke-dasharray="3 2" visibility="hidden"></line>' +
+            '<circle cx="' + tr.lx + '" cy="' + tr.ly + '" r="3.5" fill="' + accentLine + '"></circle>' +
+            '<circle id="dfHoverDot" cx="0" cy="0" r="3.6" fill="#FFFFFF" stroke="' + accentLine + '" stroke-width="1.5" visibility="hidden"></circle>' +
+            hitRects +
+          '</svg>' +
           '<div style="display:flex;justify-content:space-between;margin-top:8px;font:500 9.5px \'JetBrains Mono\',monospace;color:#B0B6BD;">' +
             ticks.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</div>';
         // 峰值 / 平均 / 谷值 統計磚

@@ -111,6 +111,7 @@ test('buildTrend produces deterministic SVG paths', () => {
   assert.equal(tr.threshY, '24.0');
   assert.equal(tr.lx, '300.0');
   assert.equal(tr.ly, '6.0');
+  assert.deepEqual(tr.pts, [{ x: '0.0', y: '42.0' }, { x: '300.0', y: '6.0' }]);
 });
 
 test('mkColors maps breach to red and met realtime to green+blue', () => {

@@ -68,6 +68,30 @@ test('viewDetail renders tab switcher and overview content when tab=overview', (
   assert.match(html, /06\/18 12時/); // 由 checkTime 2026-06-24 12:00:11 推算的週刻度
 });
 
+test('viewDetail overview emits hover hit-rects and readout elements', () => {
+  const s = snap();
+  const row = s.rows.find(function (r) { return r.group === 'segroup'; });
+  const records = [
+    { delay: 10, delayMin: 10, breached: false, checkTime: '2026-06-24 12:00:11', maxUpdate: '' },
+    { delay: 20, delayMin: 20, breached: false, checkTime: '2026-06-24 11:00:11', maxUpdate: '' }
+  ];
+  const html = Views.viewDetail({
+    row: row, checkTime: s.checkTime,
+    history: { status: 'ready', records: records },
+    tab: 'overview', range: '24h'
+  });
+  assert.match(html, /id="dfReadout"/);
+  assert.match(html, /id="dfReadTime"/);
+  assert.match(html, /id="dfReadVal"/);
+  assert.match(html, /id="dfTrendSvg"/);
+  assert.match(html, /id="dfHoverLine"/);
+  assert.match(html, /id="dfHoverDot"/);
+  assert.match(html, /data-hover-idx="0"/);
+  assert.match(html, /data-hover-idx="1"/);
+  assert.match(html, /最新/);            // default readout prefix
+  assert.match(html, /06\/24 12:00/);   // newest point time (checkTime reversed → right)
+});
+
 test('viewDetail shows spinner while history loading', () => {
   const s = snap();
   const row = s.rows[0];

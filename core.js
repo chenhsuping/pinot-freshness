@@ -85,13 +85,14 @@
     var max = Math.max.apply(null, vals.concat([sla * 1.15, 1]));
     var n = vals.length, step = W / (n > 1 ? (n - 1) : 1);
     var y = function (v) { return bottom - (v / max) * plotH; };
-    var line = '', area = 'M0 ' + bottom + ' ';
+    var line = '', area = 'M0 ' + bottom + ' ', ptsArr = [];
     vals.forEach(function (v, i) {
       var x = (i * step).toFixed(1), yy = y(v).toFixed(1);
       line += (i ? 'L' : 'M') + x + ' ' + yy + ' '; area += 'L' + x + ' ' + yy + ' ';
+      ptsArr.push({ x: x, y: yy });
     });
     area += 'L' + W + ' ' + bottom + ' Z';
-    return { spark: line.trim(), area: area, threshY: y(sla).toFixed(1), lx: ((n - 1) * step).toFixed(1), ly: y(vals[n - 1]).toFixed(1) };
+    return { spark: line.trim(), area: area, threshY: y(sla).toFixed(1), lx: ((n - 1) * step).toFixed(1), ly: y(vals[n - 1]).toFixed(1), pts: ptsArr };
   }
 
   function mkColors(row) {
