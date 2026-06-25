@@ -119,15 +119,20 @@
   }
 
   /* ----------------------------- 資料層 ----------------------------- */
+  // gviz 會在伺服器端依「查詢 URL」快取數分鐘；若不破壞快取，剛改寫過的 sheet
+  // 會讓瀏覽器拿到過期快照（例如只剩部分時段的資料）。每次請求給唯一 reqId
+  // 並關閉瀏覽器快取，確保永遠讀到最新資料。
+  var gvizSeq = 0;
   function gvizUrl(region, tq) {
     var r = CONFIG.regions[region];
+    var reqId = String(Date.now()) + '_' + (gvizSeq++);
     return 'https://docs.google.com/spreadsheets/d/' + r.id +
-      '/gviz/tq?tqx=out:json&sheet=' + encodeURIComponent(r.tab) +
+      '/gviz/tq?tqx=reqId:' + reqId + ';out:json&sheet=' + encodeURIComponent(r.tab) +
       '&tq=' + encodeURIComponent(tq);
   }
 
   function gvizQuery(region, tq) {
-    return fetch(gvizUrl(region, tq), { credentials: 'omit' }).then(function (res) {
+    return fetch(gvizUrl(region, tq), { credentials: 'omit', cache: 'no-store' }).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.text();
     }).then(function (text) { return Core.parseGvizText(text); });
