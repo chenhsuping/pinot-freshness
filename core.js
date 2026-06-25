@@ -153,6 +153,71 @@
     }).filter(Boolean);
   }
 
+  /* ---- CSV 匯出端點解析（gviz 伺服器快取不可靠，改讀 /export?format=csv） ---- */
+  // 正規 CSV 解析：處理引號欄位、欄內逗號、"" 轉義、CRLF。回傳 string[][]。
+  function parseCsv(text) {
+    text = String(text == null ? '' : text).replace(/^﻿/, ''); // 去除 BOM
+    var rows = [], row = [], field = '', inQ = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (inQ) {
+        if (ch === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else inQ = false;
+        } else field += ch;
+      } else if (ch === '"') {
+        inQ = true;
+      } else if (ch === ',') {
+        row.push(field); field = '';
+      } else if (ch === '\n') {
+        row.push(field); rows.push(row); row = []; field = '';
+      } else if (ch !== '\r') {
+        field += ch;
+      }
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  // 將 CSV 欄位陣列轉為共同資料模型（欄位索引沿用 COL，與 gviz 一致）
+  function normalizeCsvFields(region, f) {
+    var bu = f[COL.bu];
+    if (bu == null || bu === '' || bu === 'BU') return null; // 空列或表頭
+    return {
+      region: region,
+      bu: String(bu),
+      group: String(f[COL.group]),
+      table: String(f[COL.table]),
+      source: String(f[COL.source]),
+      sla: Number(f[COL.sla]),
+      checkTime: String(f[COL.checkTime]),
+      maxUpdate: String(f[COL.maxUpdate]),
+      delayMin: Number(f[COL.delay]),
+      delayHuman: String(f[COL.delayHuman]),
+      status: String(f[COL.status])
+    };
+  }
+
+  // CSV 全文 → 全部資料列（共同模型）
+  function rowsFromCsv(region, text) {
+    return parseCsv(text).map(function (f) {
+      return normalizeCsvFields(region, f);
+    }).filter(function (r) {
+      return r && r.checkTime && r.checkTime !== 'null' && !isNaN(r.delayMin);
+    });
+  }
+
+  // 從全部資料列中，取某張表（bu/group/table）的歷史記錄，新到舊排序
+  function historyForRow(allRows, row) {
+    return allRows.filter(function (r) {
+      return r.bu === row.bu && r.group === row.group && r.table === row.table;
+    }).map(function (r) {
+      return { checkTime: r.checkTime, maxUpdate: r.maxUpdate, delayMin: r.delayMin, delay: r.delayMin, breached: r.delayMin > row.sla };
+    }).sort(function (a, b) {
+      return a.checkTime < b.checkTime ? 1 : a.checkTime > b.checkTime ? -1 : 0;
+    });
+  }
+
   function sliceByRange(records, checkTime, rangeKey) {
     var hours = rangeKey === '24h' ? 24 : rangeKey === '3d' ? 72 : 168;
     var ref = parseTime({ v: checkTime, f: checkTime });
@@ -256,6 +321,8 @@
     mkColors: mkColors, filterRows: filterRows, escHtml: escHtml,
     slaHuman: slaHuman, human: human, weekTicks: weekTicks, sha256Hex: sha256Hex,
     extractRecords: extractRecords, sliceByRange: sliceByRange,
+    parseCsv: parseCsv, normalizeCsvFields: normalizeCsvFields,
+    rowsFromCsv: rowsFromCsv, historyForRow: historyForRow,
     summarizeRange: summarizeRange, fmtRangeLabel: fmtRangeLabel,
     snapshotAgeMin: snapshotAgeMin, isStale: isStale,
     detectGaps: detectGaps, summarizeGaps: summarizeGaps

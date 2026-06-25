@@ -242,3 +242,65 @@ test('sha256Hex matches the configured password hash', async () => {
   const wrong = await Core.sha256Hex('wrong');
   assert.notEqual(wrong, h);
 });
+
+// CSV 匯出端點解析（取代 gviz 後的主要資料路徑）
+const CSV_HEADER = 'BU,group_name,table_name,Source_Type,SLA,Check_Time,Max_Update_Time,max_update_unix_ms,Delay_Time,Delay_Status,SLA_Status,Update_Count';
+
+test('parseCsv handles BOM, CRLF, and quoted fields with embedded commas', () => {
+  const csv = '﻿' + CSV_HEADER + '\r\n' +
+    'MCD,cxgroup,dim_account,Offline,240,2026-06-25 14:00:08,2026-06-25 11:34:00,1782000000000,145,2時 25分,Met,"1,834,764"\r\n';
+  const rows = Core.parseCsv(csv);
+  assert.equal(rows.length, 2);            // header + 1 data row
+  assert.equal(rows[0][0], 'BU');          // BOM stripped from first header cell
+  assert.equal(rows[1].length, 12);        // quoted comma did not split the row
+  assert.equal(rows[1][11], '1,834,764');  // embedded commas preserved inside quotes
+});
+
+test('rowsFromCsv drops header/blank lines and builds common model', () => {
+  const csv = CSV_HEADER + '\n' +
+    'MCD,cxgroup,dim_account,Offline,240,2026-06-25 14:00:08,2026-06-25 11:34:00,1782000000000,145,2時 25分,Met,"1,834,764"\n' +
+    'MCD,cxgroup,fact_game_transaction,Realtime,15,2026-06-25 14:00:08,2026-06-25 13:59:00,1782000000001,1,1分,Met,"5,000"\n' +
+    '\n'; // trailing blank
+  const rows = Core.rowsFromCsv('HK', csv);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].bu, 'MCD');
+  assert.equal(rows[0].group, 'cxgroup');
+  assert.equal(rows[0].table, 'dim_account');
+  assert.equal(rows[0].source, 'Offline');
+  assert.equal(rows[0].sla, 240);
+  assert.equal(rows[0].checkTime, '2026-06-25 14:00:08');
+  assert.equal(rows[0].delayMin, 145);
+  assert.equal(rows[0].status, 'Met');
+});
+
+test('historyForRow filters by bu/group/table and sorts newest-first', () => {
+  const csv = CSV_HEADER + '\n' +
+    'MCD,cxgroup,dim_account,Offline,240,2026-06-25 12:00:00,2026-06-25 10:00:00,1,120,2時,Met,"1"\n' +
+    'MCD,cxgroup,dim_account,Offline,240,2026-06-25 14:00:00,2026-06-25 09:00:00,1,300,5時,Breached,"1"\n' +
+    'MCD,segroup,dim_account,Offline,240,2026-06-25 14:00:00,2026-06-25 09:00:00,1,300,5時,Breached,"1"\n' +
+    'MCD,cxgroup,dim_account,Offline,240,2026-06-25 13:00:00,2026-06-25 10:00:00,1,180,3時,Met,"1"\n';
+  const all = Core.rowsFromCsv('HK', csv);
+  const row = { bu: 'MCD', group: 'cxgroup', table: 'dim_account', sla: 240 };
+  const recs = Core.historyForRow(all, row);
+  assert.equal(recs.length, 3);                       // segroup excluded
+  assert.equal(recs[0].checkTime, '2026-06-25 14:00:00'); // newest first
+  assert.equal(recs[2].checkTime, '2026-06-25 12:00:00'); // oldest last
+  assert.equal(recs[0].breached, true);              // 300 > 240
+  assert.equal(recs[1].breached, false);             // 180 <= 240
+});
+
+test('CSV pipeline: rowsFromCsv -> selectLatestSnapshot -> historyForRow -> sliceByRange', () => {
+  const csv = CSV_HEADER + '\n' +
+    'MCD,cxgroup,dim_account,Offline,240,2026-06-24 10:00:00,x,1,100,x,Met,"1"\n' + // 28h before -> outside 24h
+    'MCD,cxgroup,dim_account,Offline,240,2026-06-25 14:00:00,x,1,100,x,Met,"1"\n' +
+    'MCD,cxgroup,fact_game_transaction,Realtime,15,2026-06-25 14:00:00,x,1,1,x,Met,"1"\n';
+  const all = Core.rowsFromCsv('HK', csv);
+  const snap = Core.selectLatestSnapshot(all.slice());
+  assert.equal(snap.checkTime, '2026-06-25 14:00:00');
+  assert.equal(snap.rows.length, 2);                 // latest batch has 2 tables
+  const dim = snap.rows.find(function (r) { return r.table === 'dim_account'; });
+  const hist = Core.historyForRow(all, dim);
+  assert.equal(hist.length, 2);                       // both 06/24 and 06/25 dim_account
+  const within24h = Core.sliceByRange(hist, snap.checkTime, '24h');
+  assert.equal(within24h.length, 1);                 // only 06/25 14:00 within 24h window (06/24 10:00 is 28h before)
+});

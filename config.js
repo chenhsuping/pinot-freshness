@@ -11,10 +11,12 @@ window.CONFIG = {
 
   // 資料來源：Google Sheet（須設為「知道連結的人皆可檢視」，gviz 才讀得到）
   // v1 只做 HK；日後加 TW 把下面那行取消註解、並在首頁加地區切換即可。
+  // gid 為分頁的數字 ID（CSV 匯出端點需要它，不能用分頁名稱）。
+  // 取得方式：開啟該分頁，網址列 #gid=XXXX 那串數字。
   defaultRegion: 'HK',
   regions: {
-    HK: { id: '1Ti9iywMTyd7mEvnz47NvfQUsIruuhrxyWwFQx1L3pF4', tab: 'HK' },
-    // TW: { id: '1htrpPIl9U62rwzLg5UmGui38-8KBMMRhRSIYH11VNus', tab: 'TW' },
+    HK: { id: '1Ti9iywMTyd7mEvnz47NvfQUsIruuhrxyWwFQx1L3pF4', tab: 'HK', gid: '1639789319' },
+    // TW: { id: '1htrpPIl9U62rwzLg5UmGui38-8KBMMRhRSIYH11VNus', tab: 'TW', gid: '0' },
   },
 
   // 自動刷新毫秒數；0 = 關閉（預設）。例如 5 分鐘 = 300000

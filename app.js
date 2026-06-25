@@ -15,6 +15,7 @@
     gFilter: 'all',
     status: 'loading',   // loading | ready | error
     error: null,
+    allRows: [],         // 整張表所有資料列（共同模型，CSV 解析後）
     data: [],            // 最新快照（共同模型）
     checkTime: null,
     history: {},         // id -> {status, records}
@@ -118,40 +119,24 @@
       '</div>' + staleHtml + '</div>';
   }
 
-  /* ----------------------------- 資料層 ----------------------------- */
-  // gviz 會在伺服器端依「查詢 URL」快取數分鐘；若不破壞快取，剛改寫過的 sheet
-  // 會讓瀏覽器拿到過期快照（例如只剩部分時段的資料）。每次請求給唯一 reqId
-  // 並關閉瀏覽器快取，確保永遠讀到最新資料。
-  var gvizSeq = 0;
-  function gvizUrl(region, tq) {
+  /* ----------------------------- 資料層（CSV 匯出端點） ----------------------------- */
+  // gviz /gviz/tq 的伺服器端快取極不可靠（連 reqId 都擋不住），會回傳殘缺/過期快照，
+  // 導致歷史看起來只有零星幾筆。改用 /export?format=csv：一次抓回完整整張表，
+  // 快照與各表歷史皆由記憶體推導，徹底避開 gviz 快取與逐表查詢問題。
+  var csvSeq = 0;
+  function csvUrl(region) {
     var r = CONFIG.regions[region];
-    var reqId = String(Date.now()) + '_' + (gvizSeq++);
+    var bust = String(Date.now()) + '_' + (csvSeq++);
     return 'https://docs.google.com/spreadsheets/d/' + r.id +
-      '/gviz/tq?tqx=reqId:' + reqId + ';out:json&sheet=' + encodeURIComponent(r.tab) +
-      '&tq=' + encodeURIComponent(tq);
+      '/export?format=csv&gid=' + encodeURIComponent(r.gid) + '&_=' + bust;
   }
 
-  function gvizQuery(region, tq) {
-    return fetch(gvizUrl(region, tq), { credentials: 'omit', cache: 'no-store' }).then(function (res) {
+  function loadAllRows() {
+    return fetch(csvUrl(state.region), { credentials: 'omit', cache: 'no-store' }).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.text();
-    }).then(function (text) { return Core.parseGvizText(text); });
-  }
-
-  function gEsc(s) { return String(s).replace(/'/g, ''); }
-
-  function loadSnapshot() {
-    return gvizQuery(state.region, 'select * order by F desc limit 150').then(function (table) {
-      var norm = (table.rows || []).map(function (r) { return Core.normalizeRow(state.region, r); });
-      return Core.selectLatestSnapshot(norm);
-    });
-  }
-
-  function loadHistory(row) {
-    var tq = "select F, G, I where A = '" + gEsc(row.bu) + "' and B = '" + gEsc(row.group) +
-      "' and C = '" + gEsc(row.table) + "' order by F desc limit 800";
-    return gvizQuery(row.region, tq).then(function (table) {
-      return Core.extractRecords(table, row.sla);
+    }).then(function (text) {
+      return Core.rowsFromCsv(state.region, text);
     });
   }
 
@@ -260,33 +245,24 @@
     if (!e.target.closest('#dfTrendSvg')) clearHover();
   }
 
-  function currentDetailId() {
-    var top = state.stack[state.stack.length - 1];
-    return top && top.type === 'detail' ? top.id : null;
-  }
-
   function openDetail(id) {
     state.tab = 'overview';
     state.range = '24h';
     state.stack.push({ type: 'detail', id: id });
-    render();
+    // 歷史直接由記憶體中的全表資料推導（同步，不需再 fetch）
     if (!state.history[id]) {
       var row = state.data.find(function (r) { return r.id === id; });
-      state.history[id] = { status: 'loading' };
-      loadHistory(row).then(function (records) {
-        state.history[id] = { status: 'ready', records: records };
-        if (currentDetailId() === id) render();
-      }).catch(function () {
-        state.history[id] = { status: 'error' };
-        if (currentDetailId() === id) render();
-      });
+      if (row) state.history[id] = { status: 'ready', records: Core.historyForRow(state.allRows, row) };
     }
+    render();
   }
 
   function reload() {
     state.status = 'loading'; render();
-    loadSnapshot().then(function (res) {
-      state.data = res.rows; state.checkTime = res.checkTime; state.history = {};
+    loadAllRows().then(function (allRows) {
+      state.allRows = allRows;
+      var snap = Core.selectLatestSnapshot(allRows.slice());
+      state.data = snap.rows; state.checkTime = snap.checkTime; state.history = {};
       state.status = 'ready'; render();
     }).catch(function (err) {
       state.status = 'error'; state.error = err.message || String(err); render();
