@@ -101,10 +101,21 @@
         '</div>' + toolBtnsHdr();
     }
 
+    var staleHtml = '';
+    if (state.checkTime) {
+      var now = new Date();
+      if (Core.isStale(state.checkTime, now, CONFIG.staleThresholdMin)) {
+        var age = Core.snapshotAgeMin(state.checkTime, now);
+        staleHtml = '<div class="stale-banner"><div class="stale-banner-inner">' +
+          '<span>⚠</span><span>排程可能中斷 · 資料已 ' + esc(Core.human(age)) + ' 未更新 · 最後更新 ' + esc(state.checkTime) + '</span>' +
+          '</div></div>';
+      }
+    }
+
     return '<div style="position:sticky;top:0;z-index:30;background:#232B3D;box-shadow:0 2px 14px rgba(20,28,46,.16);">' +
       '<div style="max-width:1180px;margin:0 auto;padding:clamp(13px,2vw,16px) clamp(16px,4vw,32px);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
       inner +
-      '</div></div>';
+      '</div>' + staleHtml + '</div>';
   }
 
   /* ----------------------------- 資料層 ----------------------------- */
@@ -171,7 +182,9 @@
         checkTime: state.checkTime,
         history: state.history[top.id],
         tab: state.tab,
-        range: state.range
+        range: state.range,
+        cadenceMin: CONFIG.scheduleCadenceMin,
+        gapTolerance: CONFIG.gapToleranceFactor
       });
     }
     app.innerHTML = renderHeader() + wrap(html);

@@ -245,9 +245,14 @@
         return '<button data-action="range" data-val="' + pair[0] + '" style="flex:0 0 auto;border:none;cursor:pointer;padding:8px 14px;border-radius:999px;font:600 12px \'Space Grotesk\',sans-serif;background:' +
           (on ? '#232B3D' : '#EEF1F5') + ';color:' + (on ? '#FFFFFF' : '#555E6B') + ';">' + pair[1] + '</button>';
       }).join('');
+      // 排程空窗加註（依排程節奏偵測整點缺漏）
+      var gapSum = C.summarizeGaps(C.detectGaps(records, p.cadenceMin, p.gapTolerance));
+      var gapNote = gapSum.gapCount
+        ? '<span style="color:#B26B07;"> · ⚠ ' + gapSum.gapCount + ' 個排程空窗（缺 ' + gapSum.missingCount + ' 筆）</span>'
+        : '';
       // 摘要列：JetBrains Mono 符合設計規格
       var summaryLine = '<div style="font:500 11px \'JetBrains Mono\',monospace;color:#69727F;margin:12px 2px 9px;">' +
-        esc(rangeLabel) + ' · 共 ' + summary.count + ' 筆 · ' + summary.breachedCount + ' 筆逾時</div>';
+        esc(rangeLabel) + ' · 共 ' + summary.count + ' 筆 · ' + summary.breachedCount + ' 筆逾時' + gapNote + '</div>';
       var tableHtml;
       if (!records.length) {
         tableHtml = '<div style="padding:32px;text-align:center;font:500 13px \'Space Grotesk\',sans-serif;color:#9AA3AF;">此範圍尚無檢查記錄</div>';

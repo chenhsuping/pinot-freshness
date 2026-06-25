@@ -72,4 +72,17 @@ body {
 }
 .df-dot-breach { animation: dotPulse 1.8s ease-out infinite; }
 
+/* ---------- 排程過時警示橫幅（琥珀色，有別於逾時紅） ---------- */
+.stale-banner {
+  background: #FEF4E5;
+  border-top: 1px solid #E08A1E;
+  color: #B26B07;
+}
+.stale-banner-inner {
+  max-width: 1180px; margin: 0 auto;
+  padding: 8px clamp(16px, 4vw, 32px);
+  font: 600 12px 'Space Grotesk', sans-serif;
+  display: flex; align-items: center; gap: 8px;
+}
+
 [hidden] { display: none !important; }

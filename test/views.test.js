@@ -124,6 +124,39 @@ test('viewDetail tab=history renders range pills, summary, and records table', (
   assert.doesNotMatch(html, /近七天累積 Downtime/); // overview not shown
 });
 
+test('viewDetail tab=history annotates schedule gaps when hourly slots missing', () => {
+  const s = snap();
+  const row = s.rows.find(function (r) { return r.group === 'segroup'; });
+  const records = [
+    { checkTime: '2026-06-24 14:00:00', maxUpdate: '', delayMin: 10, delay: 10, breached: false },
+    { checkTime: '2026-06-24 13:00:00', maxUpdate: '', delayMin: 10, delay: 10, breached: false },
+    { checkTime: '2026-06-24 10:00:00', maxUpdate: '', delayMin: 10, delay: 10, breached: false }, // 3h gap -> missing 2
+    { checkTime: '2026-06-24 09:00:00', maxUpdate: '', delayMin: 10, delay: 10, breached: false }
+  ];
+  const html = Views.viewDetail({
+    row: row, checkTime: '2026-06-24 14:00:00',
+    history: { status: 'ready', records: records },
+    tab: 'history', range: '24h', cadenceMin: 60, gapTolerance: 1.5
+  });
+  assert.match(html, /1 個排程空窗/);
+  assert.match(html, /缺 2 筆/);
+});
+
+test('viewDetail tab=history shows no gap note when cadence is regular', () => {
+  const s = snap();
+  const row = s.rows.find(function (r) { return r.group === 'segroup'; });
+  const records = [
+    { checkTime: '2026-06-24 12:00:00', maxUpdate: '', delayMin: 10, delay: 10, breached: false },
+    { checkTime: '2026-06-24 11:00:00', maxUpdate: '', delayMin: 10, delay: 10, breached: false }
+  ];
+  const html = Views.viewDetail({
+    row: row, checkTime: '2026-06-24 12:00:00',
+    history: { status: 'ready', records: records },
+    tab: 'history', range: '24h', cadenceMin: 60, gapTolerance: 1.5
+  });
+  assert.doesNotMatch(html, /排程空窗/);
+});
+
 test('viewDetail tab=history empty state shows 共 0 筆 and placeholder', () => {
   const s = snap();
   const row = s.rows[0];

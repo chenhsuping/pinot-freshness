@@ -22,4 +22,9 @@ window.CONFIG = {
 
   // 詳情頁回看天數（近七天累積 Downtime / 趨勢）
   trendDays: 7,
+
+  // 排程空窗偵測（監測 R 腳本每小時寫入一次 sheet）
+  scheduleCadenceMin: 60,   // 排程節奏（分鐘）；目前每小時一次
+  staleThresholdMin: 90,    // 最新快照超過此分鐘數未更新 → 顯示「排程可能中斷」橫幅
+  gapToleranceFactor: 1.5,  // 相鄰記錄間隔 > 節奏 × 此係數 → 視為一個排程空窗
 };

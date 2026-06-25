@@ -196,6 +196,46 @@ test('fmtRangeLabel returns correct Chinese labels', () => {
   assert.equal(Core.fmtRangeLabel('7d'), '近7天');
 });
 
+test('snapshotAgeMin computes minutes and returns null on bad input', () => {
+  const now = new Date(2026, 5, 25, 2, 0, 0); // 02:00 local
+  assert.equal(Core.snapshotAgeMin('2026-06-25 00:00:00', now), 120);
+  assert.equal(Core.snapshotAgeMin('', now), null);
+  assert.equal(Core.snapshotAgeMin('2026-06-25 00:00:00', null), null);
+});
+
+test('isStale compares snapshot age to threshold', () => {
+  const now = new Date(2026, 5, 25, 2, 0, 0);
+  assert.equal(Core.isStale('2026-06-25 01:00:00', now, 90), false); // 60 < 90
+  assert.equal(Core.isStale('2026-06-25 00:00:00', now, 90), true);  // 120 >= 90
+  assert.equal(Core.isStale('', now, 90), false);                    // no false alarm
+});
+
+test('detectGaps finds missing hourly slots, order-independent', () => {
+  const recs = [
+    { checkTime: '2026-06-24 09:00:00' },
+    { checkTime: '2026-06-24 10:00:00' },
+    { checkTime: '2026-06-24 13:00:00' }, // 3h after 10:00 -> missing 2
+    { checkTime: '2026-06-24 14:00:00' },
+  ];
+  const gaps = Core.detectGaps(recs, 60, 1.5);
+  assert.equal(gaps.length, 1);
+  assert.equal(gaps[0].missing, 2);
+  assert.equal(gaps[0].from, '2026-06-24 10:00:00');
+  assert.equal(gaps[0].to, '2026-06-24 13:00:00');
+  // shuffled input yields same result
+  const shuffled = Core.detectGaps([recs[2], recs[0], recs[3], recs[1]], 60, 1.5);
+  assert.equal(shuffled.length, 1);
+  assert.equal(shuffled[0].missing, 2);
+  // fewer than 2 records -> no gaps
+  assert.deepEqual(Core.detectGaps([recs[0]], 60, 1.5), []);
+  assert.deepEqual(Core.detectGaps([], 60, 1.5), []);
+});
+
+test('summarizeGaps totals gap and missing counts', () => {
+  assert.deepEqual(Core.summarizeGaps([{ missing: 2 }, { missing: 5 }]), { gapCount: 2, missingCount: 7 });
+  assert.deepEqual(Core.summarizeGaps([]), { gapCount: 0, missingCount: 0 });
+});
+
 test('sha256Hex matches the configured password hash', async () => {
   const h = await Core.sha256Hex('53343286@Di');
   assert.equal(h, 'a4cce81663dc5e2bf18dfbf8d4a7c64fc4313b49210831c201d25927afe99c37');

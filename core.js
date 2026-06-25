@@ -173,6 +173,45 @@
     return rangeKey === '24h' ? '近24小時' : rangeKey === '3d' ? '近3天' : '近7天';
   }
 
+  /* ---- 排程空窗偵測（純函式；now 由呼叫端注入以利測試） ---- */
+  function snapshotAgeMin(checkTime, now) {
+    var d = parseTime({ v: checkTime, f: checkTime });
+    if (!d || !now) return null;
+    return Math.round((now.getTime() - d.getTime()) / 60000);
+  }
+
+  function isStale(checkTime, now, thresholdMin) {
+    var age = snapshotAgeMin(checkTime, now);
+    return age != null && age >= thresholdMin;
+  }
+
+  function detectGaps(records, cadenceMin, tolerance) {
+    var cad = cadenceMin || 60;
+    var tol = tolerance || 1.5;
+    var times = (records || []).map(function (r) {
+      var t = parseTime({ v: r.checkTime, f: r.checkTime });
+      return t ? t.getTime() : null;
+    }).filter(function (x) { return x != null; }).sort(function (a, b) { return a - b; });
+    var gaps = [];
+    for (var i = 1; i < times.length; i++) {
+      var deltaMin = (times[i] - times[i - 1]) / 60000;
+      if (deltaMin > cad * tol) {
+        var missing = Math.round(deltaMin / cad) - 1;
+        if (missing > 0) {
+          gaps.push({ from: fmtDatetime(new Date(times[i - 1])), to: fmtDatetime(new Date(times[i])), missing: missing });
+        }
+      }
+    }
+    return gaps;
+  }
+
+  function summarizeGaps(gaps) {
+    return {
+      gapCount: gaps.length,
+      missingCount: gaps.reduce(function (a, g) { return a + g.missing; }, 0)
+    };
+  }
+
   function sha256Hex(str) {
     return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)).then(function (buf) {
       return Array.prototype.map.call(new Uint8Array(buf), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
@@ -217,6 +256,8 @@
     mkColors: mkColors, filterRows: filterRows, escHtml: escHtml,
     slaHuman: slaHuman, human: human, weekTicks: weekTicks, sha256Hex: sha256Hex,
     extractRecords: extractRecords, sliceByRange: sliceByRange,
-    summarizeRange: summarizeRange, fmtRangeLabel: fmtRangeLabel
+    summarizeRange: summarizeRange, fmtRangeLabel: fmtRangeLabel,
+    snapshotAgeMin: snapshotAgeMin, isStale: isStale,
+    detectGaps: detectGaps, summarizeGaps: summarizeGaps
   };
 });
