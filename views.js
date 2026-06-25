@@ -46,10 +46,22 @@
         var t = rows.filter(function (r) { return r.group === g; });
         var br = t.filter(function (r) { return r.status === 'Breached'; }).length;
         var bad = br > 0, health = Math.round((t.length - br) / t.length * 100);
+        var progColor = !bad ? '#34A06B' : (health >= 50 ? '#E8A23C' : '#E0584A');
         return '<button class="df-card" data-action="openGroup" data-group="' + esc(g) + '" style="display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:#FFFFFF;border:1px solid #EAEDF2;border-radius:16px;padding:15px;cursor:pointer;">' +
-          '<div style="width:42px;height:42px;border-radius:12px;background:' + (bad ? '#FCEAE7' : '#E6F4EC') + ';display:flex;align-items:center;justify-content:center;font:600 13px \'JetBrains Mono\',monospace;color:' + (bad ? '#C53D34' : '#1F8A5B') + ';flex:0 0 auto;">' + health + '%</div>' +
-          '<div style="flex:1;min-width:0;"><div style="font:600 15px \'Space Grotesk\',sans-serif;">' + esc(g) + '</div>' +
-          '<div style="font:500 11.5px \'JetBrains Mono\',monospace;color:' + (bad ? '#C53D34' : '#1F8A5B') + ';margin-top:4px;">' + (bad ? (br + ' 張逾時') : '全部正常') + ' · 共 ' + t.length + ' 張</div></div>' +
+          '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 auto;">' +
+            '<div style="width:46px;height:46px;border-radius:13px;background:' + (bad ? '#FCEAE7' : '#E6F4EC') + ';display:flex;align-items:center;justify-content:center;font:700 14px \'JetBrains Mono\',monospace;color:' + (bad ? '#C53D34' : '#1F8A5B') + ';">' + health + '%</div>' +
+            '<div style="font:600 8.5px \'Space Grotesk\',sans-serif;color:#AEB5BE;letter-spacing:.4px;">健康率</div>' +
+          '</div>' +
+          '<div style="flex:1;min-width:0;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+              '<div style="font:600 15px \'Space Grotesk\',sans-serif;color:#1C2433;">' + esc(g) + '</div>' +
+              '<span style="font:500 11px \'JetBrains Mono\',monospace;color:#9AA3AF;">共 ' + t.length + ' 張</span>' +
+            '</div>' +
+            '<div style="height:6px;background:#EEF1F5;border-radius:999px;margin-top:6px;margin-bottom:4px;">' +
+              '<div style="height:6px;border-radius:999px;background:' + progColor + ';width:' + health + '%;"></div>' +
+            '</div>' +
+            '<div style="font:600 11px \'JetBrains Mono\',monospace;color:' + (bad ? '#C53D34' : '#1F8A5B') + ';">' + (bad ? (br + ' 張逾時') : '全部正常') + '</div>' +
+          '</div>' +
           '<div style="font-size:19px;color:#C2C8CF;flex:0 0 auto;">›</div></button>';
       }).join('');
       grid = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(264px,1fr));gap:11px;">' + cards + '</div>';
@@ -119,12 +131,15 @@
       return m ? m[2] + '/' + m[3] + ' ' + m[4] + ':' + m[5] : s;
     }
 
-    // 頁籤切換列：全寬、等分兩欄，符合設計規格
-    var tabBar = '<div style="display:flex;gap:4px;background:#EEF1F5;border-radius:11px;padding:4px;margin-top:14px;margin-bottom:18px;">' +
+    // 頁籤切換列：白底外框＋深藍選中＋每頁籤圓點，符合設計規格
+    var tabBar = '<div style="display:flex;gap:4px;background:#FFFFFF;border:1px solid #E6E9EE;border-radius:13px;padding:5px;margin-top:14px;margin-bottom:18px;box-shadow:0 1px 2px rgba(20,30,50,.04);">' +
       [['overview', '概覽'], ['history', '歷史']].map(function (pair) {
         var on = tab === pair[0];
-        return '<button data-action="tab" data-val="' + pair[0] + '" style="flex:1;border:none;cursor:pointer;padding:9px 6px;border-radius:8px;font:600 12.5px \'Space Grotesk\',sans-serif;background:' +
-          (on ? '#FFFFFF' : 'transparent') + ';color:' + (on ? '#1C2433' : '#6B7585') + ';box-shadow:' + (on ? '0 1px 3px rgba(20,30,50,.14)' : 'none') + ';">' + pair[1] + '</button>';
+        var dotColor = on ? '#E8C6CF' : '#C9D2DA';
+        return '<button data-action="tab" data-val="' + pair[0] + '" style="flex:1;border:none;cursor:pointer;padding:12px 6px 13px;border-radius:9px;font:700 14px \'Space Grotesk\',sans-serif;letter-spacing:.2px;background:' +
+          (on ? '#232B3D' : 'transparent') + ';color:' + (on ? '#FFFFFF' : '#7A828C') + ';box-shadow:' + (on ? '0 2px 8px rgba(35,43,61,.26)' : 'none') + ';display:flex;align-items:center;justify-content:center;gap:6px;">' +
+          '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + dotColor + ';flex:0 0 auto;"></span>' +
+          pair[1] + '</button>';
       }).join('') + '</div>';
 
     function infoRow(label, val, color, last) {
@@ -193,11 +208,18 @@
             ' fill="transparent" style="cursor:crosshair;"></rect>';
         }).join('');
 
+        var pointDots = tr.pts.map(function (pt, i) {
+          var cp = chartPts[i];
+          var fill = cp.breached ? '#E0584A' : '#34A06B';
+          return '<circle r="2.2" cx="' + pt.x + '" cy="' + pt.y + '" fill="' + fill + '" stroke="#FFFFFF" stroke-width="1"></circle>';
+        }).join('');
+
         trendInner = readoutHtml +
           '<svg id="dfTrendSvg" viewBox="0 0 300 84" preserveAspectRatio="none" style="width:100%;height:96px;display:block;overflow:visible;">' +
             '<path d="' + tr.area + '" fill="' + accentBg + '" opacity="0.7"></path>' +
             '<line x1="0" y1="' + tr.threshY + '" x2="300" y2="' + tr.threshY + '" stroke="#99A0A8" stroke-width="1.4" stroke-dasharray="4 3"></line>' +
             '<path d="' + tr.spark + '" fill="none" stroke="' + accentLine + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>' +
+            pointDots +
             '<line id="dfHoverLine" x1="0" y1="0" x2="0" y2="84" stroke="#B0B6BD" stroke-width="1" stroke-dasharray="3 2" visibility="hidden"></line>' +
             '<circle cx="' + tr.lx + '" cy="' + tr.ly + '" r="3.5" fill="' + accentLine + '"></circle>' +
             '<circle id="dfHoverDot" cx="0" cy="0" r="3.6" fill="#FFFFFF" stroke="' + accentLine + '" stroke-width="1.5" visibility="hidden"></circle>' +
@@ -205,16 +227,16 @@
           '</svg>' +
           '<div style="display:flex;justify-content:space-between;margin-top:8px;font:500 9.5px \'JetBrains Mono\',monospace;color:#B0B6BD;">' +
             ticks.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</div>';
-        // 峰值 / 平均 / 谷值 統計磚
+        // 最大值 / 平均 / 最小值 統計磚
         statTiles = '<div style="display:flex;gap:8px;margin-top:13px;">' +
           '<div style="flex:1;background:#F7F9FB;border-radius:10px;padding:8px 10px;">' +
-            '<div style="font:500 10px \'Space Grotesk\',sans-serif;color:#8A919A;">峰值</div>' +
+            '<div style="font:500 10px \'Space Grotesk\',sans-serif;color:#8A919A;">最大值</div>' +
             '<div style="font:600 13px \'JetBrains Mono\',monospace;color:#C53D34;margin-top:2px;">' + esc(C.human(peak)) + '</div></div>' +
           '<div style="flex:1;background:#F7F9FB;border-radius:10px;padding:8px 10px;">' +
             '<div style="font:500 10px \'Space Grotesk\',sans-serif;color:#8A919A;">平均</div>' +
             '<div style="font:600 13px \'JetBrains Mono\',monospace;color:#3A424C;margin-top:2px;">' + esc(C.human(avg)) + '</div></div>' +
           '<div style="flex:1;background:#F7F9FB;border-radius:10px;padding:8px 10px;">' +
-            '<div style="font:500 10px \'Space Grotesk\',sans-serif;color:#8A919A;">谷值</div>' +
+            '<div style="font:500 10px \'Space Grotesk\',sans-serif;color:#8A919A;">最小值</div>' +
             '<div style="font:600 13px \'JetBrains Mono\',monospace;color:#1F8A5B;margin-top:2px;">' + esc(C.human(low)) + '</div></div>' +
           '</div>';
       }

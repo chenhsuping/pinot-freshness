@@ -113,7 +113,7 @@
     }
 
     return '<div style="position:sticky;top:0;z-index:30;background:#232B3D;box-shadow:0 2px 14px rgba(20,28,46,.16);">' +
-      '<div style="max-width:1180px;margin:0 auto;padding:clamp(13px,2vw,16px) clamp(16px,4vw,32px);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
+      '<div style="max-width:1180px;margin:0 auto;padding:clamp(13px,2vw,16px) clamp(16px,4vw,32px);display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-height:44px;">' +
       inner +
       '</div>' + staleHtml + '</div>';
   }

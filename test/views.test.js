@@ -66,6 +66,8 @@ test('viewDetail renders tab switcher and overview content when tab=overview', (
   assert.match(html, /480 分/);      // slaWeek = 240 × 2 points
   assert.match(html, /30分/);        // downtime human = 10 + 20
   assert.match(html, /06\/18 12時/); // 由 checkTime 2026-06-24 12:00:11 推算的週刻度
+  assert.match(html, /最大值/);       // 統計磚標籤（原峰值）
+  assert.match(html, /最小值/);       // 統計磚標籤（原谷值）
 });
 
 test('viewDetail overview emits hover hit-rects and readout elements', () => {
